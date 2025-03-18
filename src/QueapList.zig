@@ -1,17 +1,19 @@
 const std = @import("std");
-const Node = @import("Node.zig").Node;
+// const Node = @import("Node.zig").Node;
 
 pub fn QueapList(comptime T: type) type {
     return struct {
         const Self = @This();
-        head: ?*Node(T) = null,
-        tail: ?*Node(T) = null,
+        const Node = @import("Node.zig").Node(T);
+
+        head: ?*Node = null,
+        tail: ?*Node = null,
         gpa: std.mem.Allocator,
         pub fn init(gpa: std.mem.Allocator) Self {
             return Self{ .head = null, .tail = null, .gpa = gpa };
         }
         pub fn add(self: *Self, element: anytype) !void {
-            const new_node = try self.gpa.create(Node(T));
+            const new_node = try self.gpa.create(Node);
             new_node.* = .{ .prev = null, .next = null, .data = element };
 
             if (self.head == null) { // Empty List
