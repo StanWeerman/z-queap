@@ -1,8 +1,56 @@
-//! By convention, root.zig is the root source file when making a library. If
-//! you are making an executable, the convention is to delete this file and
-//! start with main.zig instead.
 const std = @import("std");
-const QueapList = @import("QueapList.zig").QueapList;
+const Node = @import("Node.zig").Node;
+
+pub fn QueapList(comptime T: type) type {
+    return struct {
+        const Self = @This();
+        head: ?*Node(T) = null,
+        tail: ?*Node(T) = null,
+        gpa: std.mem.Allocator,
+        pub fn init(gpa: std.mem.Allocator) Self {
+            return Self{ .head = null, .tail = null, .gpa = gpa };
+        }
+        pub fn add(self: *Self, element: anytype) !void {
+            const new_node = try self.gpa.create(Node(T));
+            new_node.* = .{ .prev = null, .next = null, .data = element };
+
+            if (self.head == null) { // Empty List
+                self.head = new_node;
+                self.tail = new_node;
+            } else { // Non-Empty List
+                const temp = self.tail.?; // Should never be null
+                temp.next = new_node;
+                new_node.prev = temp;
+                self.tail = new_node;
+            }
+        }
+        pub fn deinit(self: *Self) void {
+            if (self.tail == null) {
+                return;
+            } else {
+                var temp = self.tail;
+                while (temp != null) {
+                    const remove_temp = temp.?;
+                    temp = remove_temp.prev;
+                    self.gpa.destroy(remove_temp);
+                }
+                self.head = null;
+                self.tail = null;
+            }
+        }
+        pub fn print(self: *Self) void {
+            if (self.head == null) {
+                std.debug.print("Empty List!\n", .{});
+            } else {
+                defer std.debug.print("\n", .{});
+                var temp = self.head;
+                while (temp != null) : (temp = temp.?.next) {
+                    temp.?.print();
+                }
+            }
+        }
+    };
+}
 
 const testing = std.testing;
 
