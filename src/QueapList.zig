@@ -9,36 +9,35 @@ pub fn QueapList(comptime T: type) type {
         head: ?*Node = null,
         tail: ?*Node = null,
         gpa: std.mem.Allocator,
+
         pub fn init(gpa: std.mem.Allocator) Self {
             return Self{ .head = null, .tail = null, .gpa = gpa };
         }
-        pub fn add(self: *Self, element: anytype) !void {
+        pub fn add(self: *Self, element: anytype) error{OutOfMemory}!void {
             const new_node = try self.gpa.create(Node);
             new_node.* = .{ .prev = null, .next = null, .data = element };
 
-            if (self.head == null) { // Empty List
-                self.head = new_node;
-                self.tail = new_node;
-            } else { // Non-Empty List
-                const temp = self.tail.?; // Should never be null
+            if (self.tail) |tail| {
+                const temp = tail; // Should never be null
                 temp.next = new_node;
                 new_node.prev = temp;
+                self.tail = new_node;
+            } else {
+                self.head = new_node;
                 self.tail = new_node;
             }
         }
         pub fn deinit(self: *Self) void {
-            if (self.tail == null) {
+            if (self.head == null) {
                 return;
-            } else {
-                var temp = self.tail;
-                while (temp != null) {
-                    const remove_temp = temp.?;
-                    temp = remove_temp.prev;
-                    self.gpa.destroy(remove_temp);
-                }
-                self.head = null;
-                self.tail = null;
             }
+            while (self.head) |temp| {
+                self.head = temp.next;
+                self.gpa.destroy(temp);
+            }
+            self.head = null;
+            self.tail = null;
+            // self.* = undefined; // Should add?
         }
         pub fn print(self: *Self) void {
             if (self.head == null) {
@@ -46,8 +45,8 @@ pub fn QueapList(comptime T: type) type {
             } else {
                 defer std.debug.print("\n", .{});
                 var temp = self.head;
-                while (temp != null) : (temp = temp.?.next) {
-                    temp.?.print();
+                while (temp) |next| : (temp = next.next) {
+                    next.print();
                 }
             }
         }
@@ -62,6 +61,16 @@ test "List 1" {
 
     try ql.add(1);
     try testing.expect(ql.head.?.data == 1);
+    ql.print();
+}
+
+test "Failed Allocation" {
+    var ql = QueapList(u8).init(testing.failing_allocator);
+    defer ql.deinit();
+
+    _ = ql.add(1) catch |err| {
+        try testing.expect(err == error.OutOfMemory);
+    };
     ql.print();
 }
 
