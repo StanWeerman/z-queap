@@ -2,7 +2,7 @@
 //! you are making an executable, the convention is to delete this file and
 //! start with main.zig instead.
 const std = @import("std");
-const QueapList = @import("QueapList.zig").QueapList;
+const QueapList = @import("queap_list.zig").QueapList;
 
 const testing = std.testing;
 
