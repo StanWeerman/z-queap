@@ -3,6 +3,7 @@
 //! start with main.zig instead.
 const std = @import("std");
 const QueapList = @import("queap_list.zig").QueapList;
+const QueapTree = @import("queap_tree.zig").QueapTree;
 
 const testing = std.testing;
 
