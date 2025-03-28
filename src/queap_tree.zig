@@ -73,7 +73,7 @@ pub fn QueapTree(comptime T: type) type {
             var head = self.root;
             std.debug.print("Deinit\n", .{});
             tr: switch (head.count) {
-                .Leaf => {
+                .Leaf => { // Leaf or fully deleted subtree
                     const curr = head;
                     if (curr.parent) |parent| {
                         head = parent;
