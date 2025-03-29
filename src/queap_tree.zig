@@ -76,7 +76,7 @@ pub fn QueapTree(comptime T: type) type {
                     const curr = head;
                     if (curr.parent) |parent| {
                         head = parent;
-                        std.debug.print("Deleting {?}\n", .{curr.data});
+                        // std.debug.print("Deleting {?}\n", .{curr.data});
                         self.gpa.destroy(curr);
                         continue :tr head.count;
                     } else { // Root case
@@ -99,12 +99,9 @@ pub fn QueapTree(comptime T: type) type {
         }
 
         pub fn add_node(self: *Self, parent_node: *TreeNode, element: T) Allocator.Error!void {
-            // const index = parent.count.getIndex();
-            // parent.count.addCount();
             var parent = parent_node;
             var new_node = try self.gpa.create(TreeNode);
             new_node.* = .{ .count = Count.Leaf, .leaf = true, .data = element, .hvcv = true };
-            // parent.child[index] = new_leaf;
 
             tr: switch (parent.count) {
                 .Four => {
