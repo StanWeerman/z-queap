@@ -18,7 +18,7 @@ pub fn QueapTree(comptime T: type) type {
                     Count.One => 1,
                     Count.Two => 2,
                     Count.Three => 3,
-                    Count.Four => 3,
+                    Count.Four => 4,
                 };
             }
             fn addCount(self: *Count) void {
@@ -42,11 +42,10 @@ pub fn QueapTree(comptime T: type) type {
         };
 
         const TreeNode = struct {
-            data: ?T,
+            data: union { value: ?T, child: [4]?*TreeNode },
             /// Number of children
             count: Count,
             /// Pointers to up to 4 children
-            child: [4]?*@This() = .{null} ** 4,
             /// Is this a leaf?
             leaf: bool,
 
@@ -63,9 +62,11 @@ pub fn QueapTree(comptime T: type) type {
         pub fn init(gpa: Allocator) Allocator.Error!Self {
             const root_node = try gpa.create(TreeNode);
             const max_leaf = try gpa.create(TreeNode);
-            max_leaf.* = .{ .count = Count.Leaf, .leaf = true, .data = null, .hvcv = true };
-            root_node.* = .{ .count = Count.One, .leaf = false, .data = null, .hvcv = true };
-            root_node.child[0] = max_leaf;
+            max_leaf.* = .{ .count = Count.Leaf, .leaf = true, .data = .{ .value = null }, .hvcv = true };
+            root_node.* = .{ .count = Count.One, .leaf = false, .data = .{
+                .child = .{null} ** 4,
+            }, .hvcv = true };
+            root_node.data.child[0] = max_leaf;
             max_leaf.parent = root_node;
             return Self{ .gpa = gpa, .root = root_node };
         }
@@ -86,7 +87,7 @@ pub fn QueapTree(comptime T: type) type {
                 },
                 else => { // General code for four below; nog even hier houden
                     head.count.subCount();
-                    head = head.child[head.count.getIndex()].?;
+                    head = head.data.child[head.count.getIndex()].?;
                     continue :tr head.count;
                 },
             }
@@ -94,32 +95,36 @@ pub fn QueapTree(comptime T: type) type {
 
         pub fn insert(self: *Self, element: T) Allocator.Error!void {
             var node = self.root;
-            while (node.count != Count.Leaf) : (node = node.child[node.count.getIndex() - 1].?) {}
+            while (node.count != Count.Leaf) : (node = node.data.child[node.count.getIndex() - 1].?) {}
             try self.add_node(node.parent.?, element);
         }
 
         pub fn add_node(self: *Self, parent_node: *TreeNode, element: T) Allocator.Error!void {
             var parent = parent_node;
             var new_node = try self.gpa.create(TreeNode);
-            new_node.* = .{ .count = Count.Leaf, .leaf = true, .data = element, .hvcv = true };
+            new_node.* = .{ .count = Count.Leaf, .leaf = true, .data = .{ .value = element }, .hvcv = true };
 
             tr: switch (parent.count) {
                 .Four => {
                     const new_parent = try self.gpa.create(TreeNode);
-                    new_parent.* = .{ .count = Count.Two, .leaf = false, .data = null, .hvcv = true };
+                    new_parent.* = .{ .count = Count.Two, .leaf = false, .data = .{
+                        .child = .{null} ** 4,
+                    }, .hvcv = true };
                     parent.count = Count.Three;
-                    new_parent.child[0] = parent.child[3];
-                    new_parent.child[1] = new_node;
-                    new_parent.child[0].?.parent = new_parent;
-                    new_parent.child[1].?.parent = new_parent;
+                    new_parent.data.child[0] = parent.data.child[3];
+                    new_parent.data.child[1] = new_node;
+                    new_parent.data.child[0].?.parent = new_parent;
+                    new_parent.data.child[1].?.parent = new_parent;
 
-                    parent.child[3] = null;
+                    parent.data.child[3] = null;
 
                     if (parent == self.root) {
                         self.root = try self.gpa.create(TreeNode);
-                        self.root.* = .{ .count = Count.Two, .leaf = false, .data = null, .hvcv = true };
-                        self.root.child[0] = parent;
-                        self.root.child[1] = new_parent;
+                        self.root.* = .{ .count = Count.Two, .leaf = false, .data = .{
+                            .child = .{null} ** 4,
+                        }, .hvcv = true };
+                        self.root.data.child[0] = parent;
+                        self.root.data.child[1] = new_parent;
                         parent.parent = self.root;
                         new_parent.parent = self.root;
                     } else {
@@ -131,7 +136,7 @@ pub fn QueapTree(comptime T: type) type {
                 else => {
                     const index = parent.count.getIndex();
                     parent.count.addCount();
-                    parent.child[index] = new_node;
+                    parent.data.child[index] = new_node;
                     new_node.parent = parent;
                 },
             }
@@ -158,9 +163,9 @@ test "Rens Test" {
 
     try x.insert(7);
     try x.insert(5);
-    std.debug.print("Test: {?}\n", .{x.root.child[0].?.data});
-    std.debug.print("Test: {?}\n", .{x.root.child[1].?.data});
-    std.debug.print("Test: {?}\n", .{x.root.child[2].?.data});
+    std.debug.print("Test: {?}\n", .{x.root.data.child[0].?.data.value});
+    std.debug.print("Test: {?}\n", .{x.root.data.child[1].?.data.value});
+    std.debug.print("Test: {?}\n", .{x.root.data.child[2].?.data.value});
     //std.debug.print("Test: {?}\n", .{x.root.child[0].?.child[1].?.data});
 
     // try testing.expect(5 == x.root.child[1].?.data);
@@ -174,11 +179,11 @@ test "Insert 4" {
     try x.insert(2);
     try x.insert(3);
     try x.insert(4);
-    std.debug.print("Test: {?}\n", .{x.root.child[0].?.child[0].?.data});
-    std.debug.print("Test: {?}\n", .{x.root.child[0].?.child[1].?.data});
-    std.debug.print("Test: {?}\n", .{x.root.child[0].?.child[2].?.data});
-    std.debug.print("Test: {?}\n", .{x.root.child[1].?.child[0].?.data});
-    std.debug.print("Test: {?}\n", .{x.root.child[1].?.child[1].?.data});
+    std.debug.print("Test: {?}\n", .{x.root.data.child[0].?.data.child[0].?.data.value});
+    std.debug.print("Test: {?}\n", .{x.root.data.child[0].?.data.child[1].?.data.value});
+    std.debug.print("Test: {?}\n", .{x.root.data.child[0].?.data.child[2].?.data.value});
+    std.debug.print("Test: {?}\n", .{x.root.data.child[1].?.data.child[0].?.data.value});
+    std.debug.print("Test: {?}\n", .{x.root.data.child[1].?.data.child[1].?.data.value});
 }
 
 test "Insert 7" {
@@ -193,14 +198,87 @@ test "Insert 7" {
     try x.insert(6);
     try x.insert(7);
 
-    std.debug.print("Test: {?}\n", .{x.root.child[0].?.child[0].?.data});
-    std.debug.print("Test: {?}\n", .{x.root.child[0].?.child[1].?.data});
-    std.debug.print("Test: {?}\n", .{x.root.child[0].?.child[2].?.data});
+    std.debug.print("Test: {?}\n", .{x.root.data.child[0].?.data.child[0].?.data.value});
+    std.debug.print("Test: {?}\n", .{x.root.data.child[0].?.data.child[1].?.data.value});
+    std.debug.print("Test: {?}\n", .{x.root.data.child[0].?.data.child[2].?.data.value});
 
-    std.debug.print("Test: {?}\n", .{x.root.child[1].?.child[0].?.data});
-    std.debug.print("Test: {?}\n", .{x.root.child[1].?.child[1].?.data});
-    std.debug.print("Test: {?}\n", .{x.root.child[1].?.child[2].?.data});
+    std.debug.print("Test: {?}\n", .{x.root.data.child[1].?.data.child[0].?.data.value});
+    std.debug.print("Test: {?}\n", .{x.root.data.child[1].?.data.child[1].?.data.value});
+    std.debug.print("Test: {?}\n", .{x.root.data.child[1].?.data.child[2].?.data.value});
 
-    std.debug.print("Test: {?}\n", .{x.root.child[2].?.child[0].?.data});
-    std.debug.print("Test: {?}\n", .{x.root.child[2].?.child[1].?.data});
+    std.debug.print("Test: {?}\n", .{x.root.data.child[2].?.data.child[0].?.data.value});
+    std.debug.print("Test: {?}\n", .{x.root.data.child[2].?.data.child[1].?.data.value});
+}
+
+test "Insert 12" {
+    var x = try QueapTree(u8).init(testing.allocator);
+    defer x.deinit();
+
+    try x.insert(1);
+    try x.insert(2);
+    try x.insert(3);
+    try x.insert(4);
+    try x.insert(5);
+    try x.insert(6);
+    try x.insert(7);
+    try x.insert(8);
+    try x.insert(9);
+    try x.insert(10);
+    try x.insert(11);
+    try x.insert(12);
+
+    std.debug.print("Test: {?}\n", .{x.root.data.child[0].?.data.child[0].?.data.value});
+    std.debug.print("Test: {?}\n", .{x.root.data.child[0].?.data.child[1].?.data.value});
+    std.debug.print("Test: {?}\n", .{x.root.data.child[0].?.data.child[2].?.data.value});
+
+    std.debug.print("Test: {?}\n", .{x.root.data.child[1].?.data.child[0].?.data.value});
+    std.debug.print("Test: {?}\n", .{x.root.data.child[1].?.data.child[1].?.data.value});
+    std.debug.print("Test: {?}\n", .{x.root.data.child[1].?.data.child[2].?.data.value});
+
+    std.debug.print("Test: {?}\n", .{x.root.data.child[2].?.data.child[0].?.data.value});
+    std.debug.print("Test: {?}\n", .{x.root.data.child[2].?.data.child[1].?.data.value});
+    std.debug.print("Test: {?}\n", .{x.root.data.child[2].?.data.child[2].?.data.value});
+
+    std.debug.print("Test: {?}\n", .{x.root.data.child[3].?.data.child[0].?.data.value});
+    std.debug.print("Test: {?}\n", .{x.root.data.child[3].?.data.child[1].?.data.value});
+    std.debug.print("Test: {?}\n", .{x.root.data.child[3].?.data.child[2].?.data.value});
+    std.debug.print("Test: {?}\n", .{x.root.data.child[3].?.data.child[3].?.data.value});
+}
+
+test "Insert 13" {
+    var x = try QueapTree(u8).init(testing.allocator);
+    defer x.deinit();
+
+    try x.insert(1);
+    try x.insert(2);
+    try x.insert(3);
+    try x.insert(4);
+    try x.insert(5);
+    try x.insert(6);
+    try x.insert(7);
+    try x.insert(8);
+    try x.insert(9);
+    try x.insert(10);
+    try x.insert(11);
+    try x.insert(12);
+    try x.insert(13);
+
+    std.debug.print("Test: {?}\n", .{x.root.data.child[0].?.data.child[0].?.data.child[0].?.data.value});
+    std.debug.print("Test: {?}\n", .{x.root.data.child[0].?.data.child[0].?.data.child[1].?.data.value});
+    std.debug.print("Test: {?}\n", .{x.root.data.child[0].?.data.child[0].?.data.child[2].?.data.value});
+
+    std.debug.print("Test: {?}\n", .{x.root.data.child[0].?.data.child[1].?.data.child[0].?.data.value});
+    std.debug.print("Test: {?}\n", .{x.root.data.child[0].?.data.child[1].?.data.child[1].?.data.value});
+    std.debug.print("Test: {?}\n", .{x.root.data.child[0].?.data.child[1].?.data.child[2].?.data.value});
+
+    std.debug.print("Test: {?}\n", .{x.root.data.child[0].?.data.child[2].?.data.child[0].?.data.value});
+    std.debug.print("Test: {?}\n", .{x.root.data.child[0].?.data.child[2].?.data.child[1].?.data.value});
+    std.debug.print("Test: {?}\n", .{x.root.data.child[0].?.data.child[2].?.data.child[2].?.data.value});
+
+    std.debug.print("Test: {?}\n", .{x.root.data.child[1].?.data.child[0].?.data.child[0].?.data.value});
+    std.debug.print("Test: {?}\n", .{x.root.data.child[1].?.data.child[0].?.data.child[1].?.data.value});
+    std.debug.print("Test: {?}\n", .{x.root.data.child[1].?.data.child[0].?.data.child[2].?.data.value});
+
+    std.debug.print("Test: {?}\n", .{x.root.data.child[1].?.data.child[1].?.data.child[0].?.data.value});
+    std.debug.print("Test: {?}\n", .{x.root.data.child[1].?.data.child[1].?.data.child[1].?.data.value});
 }
