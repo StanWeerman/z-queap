@@ -179,6 +179,25 @@ test "Insert 4" {
     std.debug.print("Test: {?}\n", .{x.root.child[1].?.child[0].?.data});
     std.debug.print("Test: {?}\n", .{x.root.child[1].?.child[1].?.data});
     std.debug.print("Test: {?}\n", .{x.root.child[1].?.child[2].?.data});
+}
 
-    // try testing.expect(5 == x.root.child[1].?.data);
+test "Insert 6" {
+    var x = try QueapTree(u8).init(testing.allocator);
+    defer x.deinit();
+
+    try x.insert(1);
+    try x.insert(2);
+    try x.insert(3);
+    try x.insert(4);
+    try x.insert(5);
+    try x.insert(6);
+
+    std.debug.print("Test: {?}\n", .{x.root.child[0].?.child[0].?.data});
+    std.debug.print("Test: {?}\n", .{x.root.child[0].?.child[1].?.data});
+    std.debug.print("Test: {?}\n", .{x.root.child[2].?.child[2].?.data});
+
+    std.debug.print("Test: {?}\n", .{x.root.child[1].?.child[0].?.data});
+    std.debug.print("Test: {?}\n", .{x.root.child[1].?.child[1].?.data});
+    std.debug.print("Test: {?}\n", .{x.root.child[1].?.child[2].?.data});
+    std.debug.print("Test: {?}\n", .{x.root.child[1].?.child[3].?.data});
 }
