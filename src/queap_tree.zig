@@ -71,12 +71,12 @@ pub fn QueapTree(comptime T: type) type {
         }
         pub fn deinit(self: *Self) void {
             var head = self.root;
-            std.debug.print("Deinit\n", .{});
             tr: switch (head.count) {
                 .Leaf => { // Leaf or fully deleted subtree
                     const curr = head;
                     if (curr.parent) |parent| {
                         head = parent;
+                        std.debug.print("Deleting {?}\n", .{curr.data});
                         self.gpa.destroy(curr);
                         continue :tr head.count;
                     } else { // Root case
@@ -89,26 +89,6 @@ pub fn QueapTree(comptime T: type) type {
                     head = head.child[head.count.getIndex()].?;
                     continue :tr head.count;
                 },
-                // .One => {
-                //     head.count = .Leaf;
-                //     head = head.child[0].?;
-                //     continue :tr head.count;
-                // },
-                // .Two => {
-                //     head.count = .One;
-                //     head = head.child[1].?;
-                //     continue :tr head.count;
-                // },
-                // .Three => {
-                //     head.count = .Two;
-                //     head = head.child[2].?;
-                //     continue :tr head.count;
-                // },
-                // .Four => {
-                //     head.count = .Three;
-                //     head = head.child[3].?;
-                //     continue :tr head.count;
-                // },
             }
         }
 
@@ -118,12 +98,46 @@ pub fn QueapTree(comptime T: type) type {
             try self.add_node(node.parent.?, element);
         }
 
-        pub fn add_node(self: *Self, parent: *TreeNode, element: T) Allocator.Error!void {
-            const index = parent.count.getIndex();
-            parent.count.addCount();
-            const new_leaf = try self.gpa.create(TreeNode);
-            new_leaf.* = .{ .count = Count.Leaf, .leaf = true, .data = element, .hvcv = true, .parent = parent };
-            parent.child[index] = new_leaf;
+        pub fn add_node(self: *Self, parent_node: *TreeNode, element: T) Allocator.Error!void {
+            // const index = parent.count.getIndex();
+            // parent.count.addCount();
+            var parent = parent_node;
+            var new_node = try self.gpa.create(TreeNode);
+            new_node.* = .{ .count = Count.Leaf, .leaf = true, .data = element, .hvcv = true };
+            // parent.child[index] = new_leaf;
+
+            tr: switch (parent.count) {
+                .Four => {
+                    const new_parent = try self.gpa.create(TreeNode);
+                    new_parent.* = .{ .count = Count.Three, .leaf = false, .data = null, .hvcv = true };
+                    parent.count = Count.Two;
+                    new_parent.child[0] = parent.child[2];
+                    new_parent.child[1] = parent.child[3];
+                    new_parent.child[2] = new_node;
+                    new_parent.child[0].?.parent = new_parent;
+                    new_parent.child[1].?.parent = new_parent;
+                    new_parent.child[2].?.parent = new_parent;
+
+                    if (parent == self.root) {
+                        self.root = try self.gpa.create(TreeNode);
+                        self.root.* = .{ .count = Count.Two, .leaf = false, .data = null, .hvcv = true };
+                        self.root.child[0] = parent;
+                        self.root.child[1] = new_parent;
+                        parent.parent = self.root;
+                        new_parent.parent = self.root;
+                    } else {
+                        new_node = new_parent;
+                        parent = parent.parent.?;
+                        continue :tr parent.count;
+                    }
+                },
+                else => {
+                    const index = parent.count.getIndex();
+                    parent.count.addCount();
+                    parent.child[index] = new_node;
+                    new_node.parent = parent;
+                },
+            }
         }
     };
 }
@@ -151,6 +165,23 @@ test "Rens Test" {
     std.debug.print("Test: {?}\n", .{x.root.child[1].?.data});
     std.debug.print("Test: {?}\n", .{x.root.child[2].?.data});
     //std.debug.print("Test: {?}\n", .{x.root.child[0].?.child[1].?.data});
+
+    // try testing.expect(5 == x.root.child[1].?.data);
+}
+
+test "Insert 4" {
+    var x = try QueapTree(u8).init(testing.allocator);
+    defer x.deinit();
+
+    try x.insert(1);
+    try x.insert(2);
+    try x.insert(3);
+    try x.insert(4);
+    std.debug.print("Test: {?}\n", .{x.root.child[0].?.child[0].?.data});
+    std.debug.print("Test: {?}\n", .{x.root.child[0].?.child[1].?.data});
+    std.debug.print("Test: {?}\n", .{x.root.child[1].?.child[0].?.data});
+    std.debug.print("Test: {?}\n", .{x.root.child[1].?.child[1].?.data});
+    std.debug.print("Test: {?}\n", .{x.root.child[1].?.child[2].?.data});
 
     // try testing.expect(5 == x.root.child[1].?.data);
 }
