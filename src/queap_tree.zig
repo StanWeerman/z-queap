@@ -197,8 +197,8 @@ test "Insert 6" {
 
     std.debug.print("Test: {?}\n", .{x.root.child[1].?.child[0].?.data});
     std.debug.print("Test: {?}\n", .{x.root.child[1].?.child[1].?.data});
-    std.debug.print("Test: {?}\n", .{x.root.child[1].?.child[2].?.data});
-    std.debug.print("Test: {?}\n", .{x.root.child[1].?.child[3].?.data});
 
+    std.debug.print("Test: {?}\n", .{x.root.child[2].?.child[0].?.data});
+    std.debug.print("Test: {?}\n", .{x.root.child[2].?.child[1].?.data});
     std.debug.print("Test: {?}\n", .{x.root.child[2].?.child[2].?.data});
 }
