@@ -94,3 +94,6 @@ test "List 1 2 3 Destroy 1 2 3 [3]u8" {
     try testing.expect(ql.head.?.next.?.next.?.data[2] == 3);
     ql.print();
 }
+
+// Fuzz testing: Randomly insert into queap, then take mins one by one
+// Save deleted mins, if any newly deleted is lower, error

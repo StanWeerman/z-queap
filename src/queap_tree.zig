@@ -1,7 +1,8 @@
 const std = @import("std");
+const Order = std.math.Order;
 const Allocator = std.mem.Allocator;
 
-pub fn QueapTree(comptime T: type) type {
+pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: fn (context: Context, a: T, b: T) Order) type {
     return struct {
         const Self = @This();
 
@@ -42,12 +43,13 @@ pub fn QueapTree(comptime T: type) type {
         };
 
         const TreeNode = struct {
-            data: union { value: ?T, child: [4]?*TreeNode },
+            data: union {
+                value: ?T,
+                /// Pointers to up to 4 children
+                child: [4]?*TreeNode,
+            },
             /// Number of children
             count: Count,
-            /// Pointers to up to 4 children
-            /// Is this a leaf?
-            leaf: bool,
 
             parent: ?*@This() = null,
 
@@ -58,17 +60,19 @@ pub fn QueapTree(comptime T: type) type {
             hvcv: bool,
         };
         root: *TreeNode,
-        gpa: Allocator,
-        pub fn init(gpa: Allocator) Allocator.Error!Self {
-            const root_node = try gpa.create(TreeNode);
-            const max_leaf = try gpa.create(TreeNode);
-            max_leaf.* = .{ .count = Count.Leaf, .leaf = true, .data = .{ .value = null }, .hvcv = true };
-            root_node.* = .{ .count = Count.One, .leaf = false, .data = .{
+        allocator: Allocator,
+        /// CompareFn and Context from https://github.com/ziglang/zig/blob/master/lib/std/priority_queue.zig
+        context: Context,
+        pub fn init(allocator: Allocator, context: Context) Allocator.Error!Self {
+            const root_node = try allocator.create(TreeNode);
+            const max_leaf = try allocator.create(TreeNode);
+            max_leaf.* = .{ .count = Count.Leaf, .data = .{ .value = null }, .hvcv = true };
+            root_node.* = .{ .count = Count.One, .data = .{
                 .child = .{null} ** 4,
-            }, .hvcv = true };
+            }, .hvcv = true, .p = max_leaf };
             root_node.data.child[0] = max_leaf;
             max_leaf.parent = root_node;
-            return Self{ .gpa = gpa, .root = root_node };
+            return Self{ .allocator = allocator, .root = root_node, .context = context };
         }
         pub fn deinit(self: *Self) void {
             var head = self.root;
@@ -78,10 +82,10 @@ pub fn QueapTree(comptime T: type) type {
                     if (curr.parent) |parent| {
                         head = parent;
                         // std.debug.print("Deleting {?}\n", .{curr.data});
-                        self.gpa.destroy(curr);
+                        self.allocator.destroy(curr);
                         continue :tr head.count;
                     } else { // Root case
-                        self.gpa.destroy(curr);
+                        self.allocator.destroy(curr);
                         return; // Return after finding root
                     }
                 },
@@ -101,13 +105,13 @@ pub fn QueapTree(comptime T: type) type {
 
         pub fn add_node(self: *Self, parent_node: *TreeNode, element: T) Allocator.Error!void {
             var parent = parent_node;
-            var new_node = try self.gpa.create(TreeNode);
-            new_node.* = .{ .count = Count.Leaf, .leaf = true, .data = .{ .value = element }, .hvcv = true };
+            var new_node = try self.allocator.create(TreeNode);
+            new_node.* = .{ .count = Count.Leaf, .data = .{ .value = element }, .hvcv = true };
 
             tr: switch (parent.count) {
                 .Four => {
-                    const new_parent = try self.gpa.create(TreeNode);
-                    new_parent.* = .{ .count = Count.Two, .leaf = false, .data = .{
+                    const new_parent = try self.allocator.create(TreeNode);
+                    new_parent.* = .{ .count = Count.Two, .data = .{
                         .child = .{null} ** 4,
                     }, .hvcv = true };
                     parent.count = Count.Three;
@@ -119,10 +123,10 @@ pub fn QueapTree(comptime T: type) type {
                     parent.data.child[3] = null;
 
                     if (parent == self.root) {
-                        self.root = try self.gpa.create(TreeNode);
-                        self.root.* = .{ .count = Count.Two, .leaf = false, .data = .{
+                        self.root = try self.allocator.create(TreeNode);
+                        self.root.* = .{ .count = Count.Two, .data = .{
                             .child = .{null} ** 4,
-                        }, .hvcv = true };
+                        }, .hvcv = true, .p = parent.p };
                         self.root.data.child[0] = parent;
                         self.root.data.child[1] = new_parent;
                         parent.parent = self.root;
@@ -134,6 +138,14 @@ pub fn QueapTree(comptime T: type) type {
                     }
                 },
                 else => {
+                    if (self.root.p.?.data.value) |old| {
+                        if (compareFn(self.context, old, element) != .lt) {
+                            self.root.p = new_node;
+                        }
+                    } else {
+                        self.root.p = new_node;
+                    }
+
                     const index = parent.count.getIndex();
                     parent.count.addCount();
                     parent.data.child[index] = new_node;
@@ -146,8 +158,15 @@ pub fn QueapTree(comptime T: type) type {
 
 const testing = std.testing;
 
+fn lessThan(context: void, a: u8, b: u8) Order {
+    _ = context;
+    return std.math.order(a, b);
+}
+
+const QTlt = QueapTree(u8, void, lessThan);
+
 test "Init" {
-    var qt = try QueapTree(u8).init(testing.allocator);
+    var qt = try QTlt.init(testing.allocator, {});
     defer qt.deinit();
 
     try qt.add_node(qt.root, 5);
@@ -158,7 +177,7 @@ test "Init" {
 }
 
 test "Rens Test" {
-    var x = try QueapTree(u8).init(testing.allocator);
+    var x = try QTlt.init(testing.allocator, {});
     defer x.deinit();
 
     try x.insert(7);
@@ -172,7 +191,7 @@ test "Rens Test" {
 }
 
 test "Insert 4" {
-    var x = try QueapTree(u8).init(testing.allocator);
+    var x = try QTlt.init(testing.allocator, {});
     defer x.deinit();
 
     try x.insert(1);
@@ -187,7 +206,7 @@ test "Insert 4" {
 }
 
 test "Insert 7" {
-    var x = try QueapTree(u8).init(testing.allocator);
+    var x = try QTlt.init(testing.allocator, {});
     defer x.deinit();
 
     try x.insert(1);
@@ -211,7 +230,7 @@ test "Insert 7" {
 }
 
 test "Insert 12" {
-    var x = try QueapTree(u8).init(testing.allocator);
+    var x = try QTlt.init(testing.allocator, {});
     defer x.deinit();
 
     try x.insert(1);
@@ -246,7 +265,7 @@ test "Insert 12" {
 }
 
 test "Insert 13" {
-    var x = try QueapTree(u8).init(testing.allocator);
+    var x = try QTlt.init(testing.allocator, {});
     defer x.deinit();
 
     try x.insert(1);
@@ -281,4 +300,34 @@ test "Insert 13" {
 
     std.debug.print("Test: {?}\n", .{x.root.data.child[1].?.data.child[1].?.data.child[0].?.data.value});
     std.debug.print("Test: {?}\n", .{x.root.data.child[1].?.data.child[1].?.data.child[1].?.data.value});
+}
+
+test "Root min" {
+    var x = try QTlt.init(testing.allocator, {});
+    defer x.deinit();
+
+    try x.insert(7);
+    std.debug.print("Min: {?}\n", .{x.root.p.?.data.value.?});
+    try x.insert(12);
+    std.debug.print("Min: {?}\n", .{x.root.p.?.data.value.?});
+    try x.insert(6);
+    std.debug.print("Min: {?}\n", .{x.root.p.?.data.value.?});
+    try x.insert(3);
+    std.debug.print("Min: {?}\n", .{x.root.p.?.data.value.?});
+    try x.insert(2);
+    std.debug.print("Min: {?}\n", .{x.root.p.?.data.value.?});
+    try x.insert(4);
+    std.debug.print("Min: {?}\n", .{x.root.p.?.data.value.?});
+    try x.insert(5);
+    std.debug.print("Min: {?}\n", .{x.root.p.?.data.value.?});
+    try x.insert(9);
+    std.debug.print("Min: {?}\n", .{x.root.p.?.data.value.?});
+    try x.insert(10);
+    std.debug.print("Min: {?}\n", .{x.root.p.?.data.value.?});
+    try x.insert(11);
+    std.debug.print("Min: {?}\n", .{x.root.p.?.data.value.?});
+    try x.insert(13);
+    std.debug.print("Min: {?}\n", .{x.root.p.?.data.value.?});
+    try x.insert(1);
+    std.debug.print("Min: {?}\n", .{x.root.p.?.data.value.?});
 }
