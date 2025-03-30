@@ -6,6 +6,8 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
     return struct {
         const Self = @This();
 
+        const dat = enum { value, child };
+
         const Count = enum(u3) {
             Leaf = 0,
             One = 1,
@@ -43,7 +45,7 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
         };
 
         const TreeNode = struct {
-            data: union {
+            data: union(dat) {
                 value: ?T,
                 /// Pointers to up to 4 children
                 child: [4]?*TreeNode,
@@ -157,6 +159,48 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
 }
 
 const testing = std.testing;
+
+/// Testing function to print QueapTree.
+fn print_tree(comptime T: type, qt: *T) Allocator.Error!void {
+    const L = std.DoublyLinkedList(*T.TreeNode);
+    var queue = L{};
+
+    const first_node = try qt.allocator.create(L.Node);
+    first_node.* = .{ .data = qt.root };
+    queue.append(first_node);
+
+    var next_result = queue.popFirst();
+
+    var child_count_1: usize = 1;
+    var child_count_2: usize = 0;
+
+    while (next_result) |next| : (next_result = queue.popFirst()) {
+        switch (next.data.*.data) {
+            .child => |*children| {
+                child_count_2 += next.data.count.getIndex();
+                // std.debug.print("\t{?}", .{next.data.p.?.data.value});
+                std.debug.print("\t{}", .{next.data.count.getIndex()});
+                for (children) |elem| {
+                    if (elem) |el| {
+                        const new_node = try qt.allocator.create(L.Node);
+                        new_node.* = .{ .data = el };
+                        queue.append(new_node);
+                    }
+                }
+            },
+            .value => |*val| {
+                std.debug.print("\t{?}", .{val.*});
+            },
+        }
+        child_count_1 = child_count_1 - 1;
+        if (child_count_1 == 0) {
+            std.debug.print("\n({})", .{child_count_2});
+            child_count_1 = child_count_2;
+            child_count_2 = 0;
+        }
+        qt.allocator.destroy(next);
+    }
+}
 
 fn lessThan(context: void, a: u8, b: u8) Order {
     _ = context;
@@ -330,4 +374,25 @@ test "Root min" {
     std.debug.print("Min: {?}\n", .{x.root.p.?.data.value.?});
     try x.insert(1);
     std.debug.print("Min: {?}\n", .{x.root.p.?.data.value.?});
+}
+
+test "Print Tree" {
+    var x = try QTlt.init(testing.allocator, {});
+    defer x.deinit();
+    std.debug.print("PRINT TREE TEST: \n", .{});
+    try x.insert(1);
+    try x.insert(2);
+    try x.insert(3);
+    try x.insert(4);
+    try x.insert(5);
+    try x.insert(6);
+    try x.insert(7);
+    try x.insert(8);
+    try x.insert(9);
+    try x.insert(10);
+    try x.insert(11);
+    try x.insert(12);
+    try x.insert(13);
+    try print_tree(QTlt, &x);
+    std.debug.print("\n", .{});
 }
