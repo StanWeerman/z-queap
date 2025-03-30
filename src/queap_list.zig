@@ -1,24 +1,31 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-// const Node = @import("Node.zig").Node;
 
+/// Singly Linked List with Head and Tail implemented for a Queap.\
+/// Methods: `init`, `add`, `deinit`
 pub fn QueapList(comptime T: type) type {
     return struct {
         const Self = @This();
         const Node = struct {
+            /// Pointer to the next node or null for end of list.
             next: ?*Node,
+            /// Generic data in list.
             data: T,
         };
 
         head: ?*Node = null,
         tail: ?*Node = null,
-        gpa: *std.mem.Allocator,
+        allocator: *std.mem.Allocator,
 
-        pub fn init(gpa: *Allocator) Self {
-            return Self{ .head = null, .tail = null, .gpa = gpa };
+        /// Initialize and return QueapList. Takes a pointer to an Allocator (from Queap).
+        /// Deinitialize with `deinit` or use `toOwnedSlice`.
+        pub fn init(allocator: *Allocator) Self {
+            return Self{ .head = null, .tail = null, .allocator = allocator };
         }
+
+        /// Insert a new element to the back of the QueapList.
         pub fn add(self: *Self, element: anytype) Allocator.Error!void {
-            const new_node = try self.gpa.create(Node);
+            const new_node = try self.allocator.create(Node);
             new_node.* = .{ .next = null, .data = element };
 
             if (self.tail) |tail| {
@@ -29,13 +36,15 @@ pub fn QueapList(comptime T: type) type {
                 self.tail = new_node;
             }
         }
+
+        /// Free memory used by the QueapList.
         pub fn deinit(self: *Self) void {
             if (self.head == null) {
                 return;
             }
             while (self.head) |temp| {
                 self.head = temp.next;
-                self.gpa.destroy(temp);
+                self.allocator.destroy(temp);
             }
             self.head = null;
             self.tail = null;
@@ -46,7 +55,8 @@ pub fn QueapList(comptime T: type) type {
 
 const testing = std.testing;
 
-pub fn print(comptime T: type, ql: *QueapList(T)) void {
+/// Testing function to print QueapList.
+fn print(comptime T: type, ql: *QueapList(T)) void {
     if (ql.head == null) {
         std.debug.print("Empty List!\n", .{});
     } else {
@@ -58,10 +68,10 @@ pub fn print(comptime T: type, ql: *QueapList(T)) void {
     }
 }
 
-var allocator = testing.allocator;
+var test_allocator = testing.allocator;
 
 test "List 1" {
-    var ql = QueapList(u8).init(&allocator);
+    var ql = QueapList(u8).init(&test_allocator);
     defer ql.deinit();
 
     try ql.add(1);
@@ -81,7 +91,7 @@ test "Failed Allocation" {
 }
 
 test "List 1 2 3" {
-    var ql = QueapList(u8).init(&allocator);
+    var ql = QueapList(u8).init(&test_allocator);
     defer ql.deinit();
 
     try ql.add(1);
@@ -94,7 +104,7 @@ test "List 1 2 3" {
 }
 
 test "List 1 2 3 Destroy" {
-    var ql = QueapList(u8).init(&allocator);
+    var ql = QueapList(u8).init(&test_allocator);
     defer ql.deinit();
 
     try ql.add(1);
@@ -110,7 +120,7 @@ test "List 1 2 3 Destroy" {
 }
 
 test "List 1 2 3 Destroy 1 2 3" {
-    var ql = QueapList(u8).init(&allocator);
+    var ql = QueapList(u8).init(&test_allocator);
     defer ql.deinit();
 
     try ql.add(1);
@@ -135,7 +145,7 @@ test "List 1 2 3 Destroy 1 2 3" {
 }
 
 test "List 1 2 3 Destroy 1 2 3 [3]u8" {
-    var ql = QueapList([3]u8).init(&allocator);
+    var ql = QueapList([3]u8).init(&test_allocator);
     defer ql.deinit();
 
     try ql.add([_]u8{ 1, 1, 1 });
