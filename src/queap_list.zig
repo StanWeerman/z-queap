@@ -5,23 +5,24 @@ const Allocator = std.mem.Allocator;
 pub fn QueapList(comptime T: type) type {
     return struct {
         const Self = @This();
-        const Node = @import("node.zig").Node(T);
+        const Node = struct {
+            next: ?*Node,
+            data: T,
+        };
 
         head: ?*Node = null,
         tail: ?*Node = null,
-        gpa: std.mem.Allocator,
+        gpa: *std.mem.Allocator,
 
-        pub fn init(gpa: Allocator) Self {
+        pub fn init(gpa: *Allocator) Self {
             return Self{ .head = null, .tail = null, .gpa = gpa };
         }
         pub fn add(self: *Self, element: anytype) Allocator.Error!void {
             const new_node = try self.gpa.create(Node);
-            new_node.* = .{ .prev = null, .next = null, .data = element };
+            new_node.* = .{ .next = null, .data = element };
 
             if (self.tail) |tail| {
-                const temp = tail; // Should never be null
-                temp.next = new_node;
-                new_node.prev = temp;
+                tail.next = new_node;
                 self.tail = new_node;
             } else {
                 self.head = new_node;
@@ -40,43 +41,47 @@ pub fn QueapList(comptime T: type) type {
             self.tail = null;
             // self.* = undefined; // Should add?
         }
-        pub fn print(self: *Self) void {
-            if (self.head == null) {
-                std.debug.print("Empty List!\n", .{});
-            } else {
-                defer std.debug.print("\n", .{});
-                var temp = self.head;
-                while (temp) |next| : (temp = next.next) {
-                    next.print();
-                }
-            }
-        }
     };
 }
 
 const testing = std.testing;
 
+pub fn print(comptime T: type, ql: *QueapList(T)) void {
+    if (ql.head == null) {
+        std.debug.print("Empty List!\n", .{});
+    } else {
+        defer std.debug.print("\n", .{});
+        var temp = ql.head;
+        while (temp) |next| : (temp = next.next) {
+            std.debug.print("{any} ", .{next.data});
+        }
+    }
+}
+
+var allocator = testing.allocator;
+
 test "List 1" {
-    var ql = QueapList(u8).init(testing.allocator);
+    var ql = QueapList(u8).init(&allocator);
     defer ql.deinit();
 
     try ql.add(1);
     try testing.expect(ql.head.?.data == 1);
-    ql.print();
+    print(u8, &ql);
 }
 
 test "Failed Allocation" {
-    var ql = QueapList(u8).init(testing.failing_allocator);
+    var failing_allocator = testing.failing_allocator;
+    var ql = QueapList(u8).init(&failing_allocator);
     defer ql.deinit();
 
     _ = ql.add(1) catch |err| {
         try testing.expect(err == error.OutOfMemory);
     };
-    ql.print();
+    print(u8, &ql);
 }
 
 test "List 1 2 3" {
-    var ql = QueapList(u8).init(testing.allocator);
+    var ql = QueapList(u8).init(&allocator);
     defer ql.deinit();
 
     try ql.add(1);
@@ -85,11 +90,11 @@ test "List 1 2 3" {
     try testing.expect(ql.head.?.data == 1);
     try testing.expect(ql.head.?.next.?.data == 2);
     try testing.expect(ql.head.?.next.?.next.?.data == 3);
-    ql.print();
+    print(u8, &ql);
 }
 
 test "List 1 2 3 Destroy" {
-    var ql = QueapList(u8).init(testing.allocator);
+    var ql = QueapList(u8).init(&allocator);
     defer ql.deinit();
 
     try ql.add(1);
@@ -98,14 +103,14 @@ test "List 1 2 3 Destroy" {
     try testing.expect(ql.head.?.data == 1);
     try testing.expect(ql.head.?.next.?.data == 2);
     try testing.expect(ql.head.?.next.?.next.?.data == 3);
-    ql.print();
+    print(u8, &ql);
     ql.deinit();
     try testing.expect(ql.head == null);
-    ql.print();
+    print(u8, &ql);
 }
 
 test "List 1 2 3 Destroy 1 2 3" {
-    var ql = QueapList(u8).init(testing.allocator);
+    var ql = QueapList(u8).init(&allocator);
     defer ql.deinit();
 
     try ql.add(1);
@@ -114,11 +119,11 @@ test "List 1 2 3 Destroy 1 2 3" {
     try testing.expect(ql.head.?.data == 1);
     try testing.expect(ql.head.?.next.?.data == 2);
     try testing.expect(ql.head.?.next.?.next.?.data == 3);
-    ql.print();
+    print(u8, &ql);
 
     ql.deinit();
     try testing.expect(ql.head == null);
-    ql.print();
+    print(u8, &ql);
 
     try ql.add(1);
     try ql.add(2);
@@ -126,11 +131,11 @@ test "List 1 2 3 Destroy 1 2 3" {
     try testing.expect(ql.head.?.data == 1);
     try testing.expect(ql.head.?.next.?.data == 2);
     try testing.expect(ql.head.?.next.?.next.?.data == 3);
-    ql.print();
+    print(u8, &ql);
 }
 
 test "List 1 2 3 Destroy 1 2 3 [3]u8" {
-    var ql = QueapList([3]u8).init(testing.allocator);
+    var ql = QueapList([3]u8).init(&allocator);
     defer ql.deinit();
 
     try ql.add([_]u8{ 1, 1, 1 });
@@ -139,11 +144,11 @@ test "List 1 2 3 Destroy 1 2 3 [3]u8" {
     try testing.expect(ql.head.?.data[0] == 1);
     try testing.expect(ql.head.?.next.?.data[1] == 2);
     try testing.expect(ql.head.?.next.?.next.?.data[2] == 3);
-    ql.print();
+    print([3]u8, &ql);
 
     ql.deinit();
     try testing.expect(ql.head == null);
-    ql.print();
+    print([3]u8, &ql);
 
     try ql.add([_]u8{ 1, 1, 1 });
     try ql.add([_]u8{ 2, 2, 2 });
@@ -151,5 +156,5 @@ test "List 1 2 3 Destroy 1 2 3 [3]u8" {
     try testing.expect(ql.head.?.data[2] == 1);
     try testing.expect(ql.head.?.next.?.data[2] == 2);
     try testing.expect(ql.head.?.next.?.next.?.data[2] == 3);
-    ql.print();
+    print([3]u8, &ql);
 }
