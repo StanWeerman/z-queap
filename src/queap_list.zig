@@ -7,9 +7,7 @@ pub fn QueapList(comptime T: type) type {
     return struct {
         const Self = @This();
         const Node = struct {
-            /// Pointer to the next node or null for end of list.
             next: ?*Node,
-            /// Generic data in list.
             data: T,
         };
 
