@@ -163,6 +163,8 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
             }
             // self.update_cv();
         }
+        /// Helper function to update the hv pointer of a node.\
+        /// Finds minimum `node` or `p` in its children and sets its `p` equal to it;
         fn update_hv(self: *Self, parent: *TreeNode) void {
             switch (parent.data.child[0].?.data) {
                 .child => {
