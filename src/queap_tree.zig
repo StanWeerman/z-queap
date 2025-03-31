@@ -124,6 +124,9 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
 
                     parent.data.child[3] = null;
 
+                    self.update_hv(new_parent);
+                    self.update_hv(parent);
+
                     if (parent == self.root) {
                         self.root = try self.allocator.create(TreeNode);
                         self.root.* = .{ .count = Count.Two, .data = .{
@@ -154,6 +157,36 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
                     new_node.parent = parent;
                 },
             }
+            var next_parent: ?*TreeNode = parent_node;
+            while (next_parent) |next| : (next_parent = next.parent) {
+                self.update_hv(next);
+            }
+            // self.update_cv();
+        }
+        fn update_hv(self: *Self, parent: *TreeNode) void {
+            switch (parent.data.child[0].?.data) {
+                .child => {
+                    const children = parent.data.child;
+                    parent.p = children[0].?.p.?;
+                    var min = children[0].?.p.?.data.value;
+                    for (1..parent.count.getIndex()) |i| {
+                        if (min == null or compareFn(self.context, min.?, children[i].?.p.?.data.value.?) != .lt) {
+                            min = children[i].?.p.?.data.value.?;
+                            parent.p = children[i].?.p.?;
+                        }
+                    }
+                },
+                .value => |*val| {
+                    parent.p = parent.data.child[0];
+                    var min = val.*;
+                    for (1..parent.count.getIndex()) |i| {
+                        if (min == null or compareFn(self.context, min.?, parent.data.child[i].?.data.value.?) != .lt) {
+                            min = parent.data.child[i].?.data.value.?;
+                            parent.p = parent.data.child[i].?;
+                        }
+                    }
+                },
+            }
         }
     };
 }
@@ -173,13 +206,14 @@ fn print_tree(comptime T: type, qt: *T) Allocator.Error!void {
 
     var child_count_1: usize = 1;
     var child_count_2: usize = 0;
+    std.debug.print("({})", .{child_count_1});
 
     while (next_result) |next| : (next_result = queue.popFirst()) {
         switch (next.data.*.data) {
             .child => |*children| {
                 child_count_2 += next.data.count.getIndex();
-                // std.debug.print("\t{?}", .{next.data.p.?.data.value});
-                std.debug.print("\t{}", .{next.data.count.getIndex()});
+                // hvcv(count)
+                std.debug.print("\t{?}({?})", .{ next.data.p.?.data.value, next.data.count.getIndex() });
                 for (children) |elem| {
                     if (elem) |el| {
                         const new_node = try qt.allocator.create(L.Node);
@@ -193,13 +227,14 @@ fn print_tree(comptime T: type, qt: *T) Allocator.Error!void {
             },
         }
         child_count_1 = child_count_1 - 1;
-        if (child_count_1 == 0) {
+        if ((child_count_1 == 0) and (child_count_2 != 0)) {
             std.debug.print("\n({})", .{child_count_2});
             child_count_1 = child_count_2;
             child_count_2 = 0;
         }
         qt.allocator.destroy(next);
     }
+    std.debug.print("\n", .{});
 }
 
 fn lessThan(context: void, a: u8, b: u8) Order {
@@ -212,12 +247,7 @@ const QTlt = QueapTree(u8, void, lessThan);
 test "Init" {
     var qt = try QTlt.init(testing.allocator, {});
     defer qt.deinit();
-
-    try qt.add_node(qt.root, 5);
-    // _ = qt;
-    // try ql.add(1);
-    // try testing.expect(ql.head.?.data == 1);
-    // ql.print();
+    try print_tree(QTlt, &qt);
 }
 
 test "Rens Test" {
@@ -394,5 +424,4 @@ test "Print Tree" {
     try x.insert(12);
     try x.insert(13);
     try print_tree(QTlt, &x);
-    std.debug.print("\n", .{});
 }
