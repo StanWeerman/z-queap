@@ -74,6 +74,7 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
             }, .hvcv = true, .p = max_leaf };
             root_node.data.child[0] = max_leaf;
             max_leaf.parent = root_node;
+            max_leaf.p = max_leaf;
             return Self{ .allocator = allocator, .root = root_node, .context = context };
         }
         pub fn deinit(self: *Self) void {
@@ -124,8 +125,10 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
 
                     parent.data.child[3] = null;
 
-                    self.update_hv(new_parent);
-                    self.update_hv(parent);
+                    new_parent.p = self.find_min_child(new_parent);
+                    parent.p = self.find_min_child(parent);
+                    // self.update_hv(new_parent);
+                    // self.update_hv(parent);
 
                     if (parent == self.root) {
                         self.root = try self.allocator.create(TreeNode);
@@ -161,57 +164,40 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
             var next_parent: ?*TreeNode = parent_node;
             const last_parent: *TreeNode = tr: while (next_parent) |next| : (next_parent = next.parent) {
                 if (next.hvcv == true) {
-                    self.update_hv(next);
+                    next.p = self.find_min_child(next);
+                    // self.update_hv(next);
                 } else {
                     break :tr next;
                 }
             } else self.root.data.child[0].?;
             self.update_cv(last_parent);
         }
-        /// Helper function to update the hv pointer of a node.\
-        /// Finds minimum `node` or `p` in its children and sets its `p` equal to it;
-        fn update_hv(self: *Self, parent: *TreeNode) void {
-            switch (parent.data.child[0].?.data) {
-                .child => {
-                    const children = parent.data.child;
-                    parent.p = children[0].?.p.?;
-                    var min = children[0].?.p.?.data.value;
-                    for (1..parent.count.getIndex()) |i| {
-                        if (min == null or compareFn(self.context, min.?, children[i].?.p.?.data.value.?) != .lt) {
-                            min = children[i].?.p.?.data.value.?;
-                            parent.p = children[i].?.p.?;
-                        }
-                    }
-                },
-                .value => |*val| {
-                    parent.p = parent.data.child[0];
-                    var min = val.*;
-                    for (1..parent.count.getIndex()) |i| {
-                        if (min == null or compareFn(self.context, min.?, parent.data.child[i].?.data.value.?) != .lt) {
-                            min = parent.data.child[i].?.data.value.?;
-                            parent.p = parent.data.child[i].?;
-                        }
-                    }
-                },
-            }
-        }
-        fn get_min(self: *Self, parent: *TreeNode) *TreeNode {
+
+        /// Helper function to get the minimum child of a node.\
+        /// Finds minimum `node` or `p` in its children and returns it;\
+        /// Update hv example: `node.p = self.find_min_child(node);`\
+        /// Update cv example: `node.p = null;`
+        /// `const new_min_p = self.find_min_child(node.parent.?);`
+        fn find_min_child(self: *Self, parent: *TreeNode) *TreeNode {
             var min_p: ?*TreeNode = null;
             switch (parent.data.child[0].?.data) {
                 .child => {
                     const children = parent.data.child;
-                    min_p = null;
+                    min_p = children[0].?.p;
                     var min: ?T = null;
+                    if (min_p) |p| {
+                        min = p.data.value;
+                    }
                     for (1..parent.count.getIndex()) |i| {
                         if (min == null or compareFn(self.context, min.?, children[i].?.p.?.data.value.?) != .lt) {
                             min = children[i].?.p.?.data.value.?;
-                            min_p = children[i].?.p.?;
+                            min_p = children[i].?.p;
                         }
                     }
                 },
-                .value => {
-                    min_p = null;
-                    var min: ?T = null;
+                .value => |*val| {
+                    min_p = parent.data.child[0];
+                    var min = val.*;
                     for (1..parent.count.getIndex()) |i| {
                         if (min == null or compareFn(self.context, min.?, parent.data.child[i].?.data.value.?) != .lt) {
                             min = parent.data.child[i].?.data.value.?;
@@ -225,19 +211,20 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
 
         fn update_cv(self: *Self, parent: *TreeNode) void {
             var next_node = parent;
-            var min_p: *TreeNode = self.get_min(next_node.parent.?);
+            var min_p: ?*TreeNode = null;
+
             tr: switch (next_node.data) {
                 .child => |children| {
                     next_node.p = null;
-                    const new_min_p = self.get_min(next_node.parent.?);
-                    if (compareFn(self.context, min_p.data.value.?, new_min_p.data.value.?) != .lt) min_p = new_min_p;
+                    const new_min_p = self.find_min_child(next_node.parent.?);
+                    if (min_p == null or compareFn(self.context, min_p.?.data.value.?, new_min_p.data.value.?) != .lt) min_p = new_min_p;
                     next_node.p = min_p;
                     next_node = children[0].?;
                     continue :tr next_node.data;
                 },
                 .value => {
-                    const new_min_p = self.get_min(next_node.parent.?);
-                    if (compareFn(self.context, min_p.data.value.?, new_min_p.data.value.?) != .lt) min_p = new_min_p;
+                    const new_min_p = self.find_min_child(next_node.parent.?);
+                    if (min_p == null or compareFn(self.context, min_p.?.data.value.?, new_min_p.data.value.?) != .lt) min_p = new_min_p;
                     next_node.p = min_p;
                     self.root.p = min_p; // Hmm
                 },
@@ -307,7 +294,6 @@ const QTlt = QueapTree(u8, void, lessThan);
 test "Init" {
     var qt = try QTlt.init(testing.allocator, {});
     defer qt.deinit();
-    // try print_tree(QTlt, &qt);
 }
 
 test "Rens Test" {
@@ -464,7 +450,6 @@ test "Root min" {
     std.debug.print("Min: {?}\n", .{x.root.p.?.data.value.?});
     try x.insert(1);
     std.debug.print("Min: {?}\n", .{x.root.p.?.data.value.?});
-    // try print_tree(QTlt, &x);
 }
 
 test "Print Tree" {
