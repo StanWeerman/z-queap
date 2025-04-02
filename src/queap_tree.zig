@@ -367,26 +367,6 @@ test "Root Maintains Min" {
     try testing.expect(1 == qt.root.p.?.data.value);
 }
 
-test "Print Tree" {
-    var qt = try QTlt.init(testing.allocator, {});
-    defer qt.deinit();
-    std.debug.print("PRINT TREE TEST: \n", .{});
-    try qt.insert(1);
-    try qt.insert(2);
-    try qt.insert(3);
-    try qt.insert(4);
-    try qt.insert(5);
-    try qt.insert(6);
-    try qt.insert(7);
-    try qt.insert(8);
-    try qt.insert(9);
-    try qt.insert(10);
-    try qt.insert(11);
-    try qt.insert(12);
-    try qt.insert(13);
-    try print_tree(QTlt, &qt);
-}
-
 test "Fuzz Testing Add" {
     var prng = std.Random.DefaultPrng.init(blk: {
         var seed: u64 = undefined;
@@ -412,4 +392,24 @@ test "Fuzz Testing Add" {
         }
         // try print_tree(QTlt, &qt);
     }
+}
+
+test "Print Tree" {
+    var qt = try QTlt.init(testing.allocator, {});
+    defer qt.deinit();
+    std.debug.print("PRINT TREE TEST: \n", .{});
+    try qt.insert(1);
+    try qt.insert(2);
+    try qt.insert(3);
+    try qt.insert(4);
+    try qt.insert(5);
+    try qt.insert(6);
+    try qt.insert(7);
+    try qt.insert(8);
+    try qt.insert(9);
+    try qt.insert(10);
+    try qt.insert(11);
+    try qt.insert(12);
+    try qt.insert(13);
+    try print_tree(QTlt, &qt);
 }
