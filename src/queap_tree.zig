@@ -6,6 +6,8 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
     return struct {
         const Self = @This();
 
+        /// Enum to distinguish leaves and keep count\
+        /// Helper methods: `getIndex`, `addCount`, `subCount`
         const Count = enum(u3) {
             Leaf = 0,
             One = 1,
@@ -258,7 +260,6 @@ fn print_tree(comptime T: type, qt: *T) Allocator.Error!void {
                     std.debug.print("\t{?}", .{v});
                 } else {
                     std.debug.print("\t{?}[∞]", .{next.data.*.p.?.data.value});
-                    // std.debug.print("\t{}[∞]", .{next.data.*.p.?.data.value.?});
                 }
             },
         }
@@ -285,178 +286,103 @@ test "Init" {
     defer qt.deinit();
 }
 
-test "Rens Test" {
-    var x = try QTlt.init(testing.allocator, {});
-    defer x.deinit();
+test "Tree Structure Add" {
+    var qt = try QTlt.init(testing.allocator, {});
+    defer qt.deinit();
 
-    try x.insert(7);
-    try x.insert(5);
-    std.debug.print("Test: {?}\n", .{x.root.data.child[0].?.data.value});
-    std.debug.print("Test: {?}\n", .{x.root.data.child[1].?.data.value});
-    std.debug.print("Test: {?}\n", .{x.root.data.child[2].?.data.value});
-    //std.debug.print("Test: {?}\n", .{x.root.child[0].?.child[1].?.data});
+    try testing.expect(null == qt.root.data.child[0].?.data.value);
+    try qt.insert(1);
+    try testing.expect(1 == qt.root.data.child[1].?.data.value);
+    try qt.insert(2);
+    try testing.expect(2 == qt.root.data.child[2].?.data.value);
+    try qt.insert(3);
+    try testing.expect(3 == qt.root.data.child[3].?.data.value);
+    try qt.insert(4);
+    try testing.expect(4 == qt.root.data.child[1].?.data.child[1].?.data.value);
+    try qt.insert(5);
+    try testing.expect(5 == qt.root.data.child[1].?.data.child[2].?.data.value);
+    try qt.insert(6);
+    try testing.expect(6 == qt.root.data.child[1].?.data.child[3].?.data.value);
+    try qt.insert(7);
+    try testing.expect(7 == qt.root.data.child[2].?.data.child[1].?.data.value);
+    try qt.insert(8);
+    try testing.expect(8 == qt.root.data.child[2].?.data.child[2].?.data.value);
+    try qt.insert(9);
+    try testing.expect(9 == qt.root.data.child[2].?.data.child[3].?.data.value);
+    try qt.insert(10);
+    try testing.expect(10 == qt.root.data.child[3].?.data.child[1].?.data.value);
+    try qt.insert(11);
+    try testing.expect(11 == qt.root.data.child[3].?.data.child[2].?.data.value);
+    try qt.insert(12);
+    try testing.expect(12 == qt.root.data.child[3].?.data.child[3].?.data.value);
+    try qt.insert(13);
 
-    // try testing.expect(5 == x.root.child[1].?.data);
+    try testing.expect(null == qt.root.data.child[0].?.data.child[0].?.data.child[0].?.data.value);
+    try testing.expect(1 == qt.root.data.child[0].?.data.child[0].?.data.child[1].?.data.value);
+    try testing.expect(2 == qt.root.data.child[0].?.data.child[0].?.data.child[2].?.data.value);
+
+    try testing.expect(3 == qt.root.data.child[0].?.data.child[1].?.data.child[0].?.data.value);
+    try testing.expect(4 == qt.root.data.child[0].?.data.child[1].?.data.child[1].?.data.value);
+    try testing.expect(5 == qt.root.data.child[0].?.data.child[1].?.data.child[2].?.data.value);
+
+    try testing.expect(6 == qt.root.data.child[0].?.data.child[2].?.data.child[0].?.data.value);
+    try testing.expect(7 == qt.root.data.child[0].?.data.child[2].?.data.child[1].?.data.value);
+    try testing.expect(8 == qt.root.data.child[0].?.data.child[2].?.data.child[2].?.data.value);
+
+    try testing.expect(9 == qt.root.data.child[1].?.data.child[0].?.data.child[0].?.data.value);
+    try testing.expect(10 == qt.root.data.child[1].?.data.child[0].?.data.child[1].?.data.value);
+    try testing.expect(11 == qt.root.data.child[1].?.data.child[0].?.data.child[2].?.data.value);
+
+    try testing.expect(12 == qt.root.data.child[1].?.data.child[1].?.data.child[0].?.data.value);
+    try testing.expect(13 == qt.root.data.child[1].?.data.child[1].?.data.child[1].?.data.value);
 }
 
-test "Insert 4" {
-    var x = try QTlt.init(testing.allocator, {});
-    defer x.deinit();
+test "Root Maintains Min" {
+    var qt = try QTlt.init(testing.allocator, {});
+    defer qt.deinit();
 
-    try x.insert(1);
-    try x.insert(2);
-    try x.insert(3);
-    try x.insert(4);
-    std.debug.print("Test: {?}\n", .{x.root.data.child[0].?.data.child[0].?.data.value});
-    std.debug.print("Test: {?}\n", .{x.root.data.child[0].?.data.child[1].?.data.value});
-    std.debug.print("Test: {?}\n", .{x.root.data.child[0].?.data.child[2].?.data.value});
-    std.debug.print("Test: {?}\n", .{x.root.data.child[1].?.data.child[0].?.data.value});
-    std.debug.print("Test: {?}\n", .{x.root.data.child[1].?.data.child[1].?.data.value});
-}
-
-test "Insert 7" {
-    var x = try QTlt.init(testing.allocator, {});
-    defer x.deinit();
-
-    try x.insert(1);
-    try x.insert(2);
-    try x.insert(3);
-    try x.insert(4);
-    try x.insert(5);
-    try x.insert(6);
-    try x.insert(7);
-
-    std.debug.print("Test: {?}\n", .{x.root.data.child[0].?.data.child[0].?.data.value});
-    std.debug.print("Test: {?}\n", .{x.root.data.child[0].?.data.child[1].?.data.value});
-    std.debug.print("Test: {?}\n", .{x.root.data.child[0].?.data.child[2].?.data.value});
-
-    std.debug.print("Test: {?}\n", .{x.root.data.child[1].?.data.child[0].?.data.value});
-    std.debug.print("Test: {?}\n", .{x.root.data.child[1].?.data.child[1].?.data.value});
-    std.debug.print("Test: {?}\n", .{x.root.data.child[1].?.data.child[2].?.data.value});
-
-    std.debug.print("Test: {?}\n", .{x.root.data.child[2].?.data.child[0].?.data.value});
-    std.debug.print("Test: {?}\n", .{x.root.data.child[2].?.data.child[1].?.data.value});
-}
-
-test "Insert 12" {
-    var x = try QTlt.init(testing.allocator, {});
-    defer x.deinit();
-
-    try x.insert(1);
-    try x.insert(2);
-    try x.insert(3);
-    try x.insert(4);
-    try x.insert(5);
-    try x.insert(6);
-    try x.insert(7);
-    try x.insert(8);
-    try x.insert(9);
-    try x.insert(10);
-    try x.insert(11);
-    try x.insert(12);
-
-    std.debug.print("Test: {?}\n", .{x.root.data.child[0].?.data.child[0].?.data.value});
-    std.debug.print("Test: {?}\n", .{x.root.data.child[0].?.data.child[1].?.data.value});
-    std.debug.print("Test: {?}\n", .{x.root.data.child[0].?.data.child[2].?.data.value});
-
-    std.debug.print("Test: {?}\n", .{x.root.data.child[1].?.data.child[0].?.data.value});
-    std.debug.print("Test: {?}\n", .{x.root.data.child[1].?.data.child[1].?.data.value});
-    std.debug.print("Test: {?}\n", .{x.root.data.child[1].?.data.child[2].?.data.value});
-
-    std.debug.print("Test: {?}\n", .{x.root.data.child[2].?.data.child[0].?.data.value});
-    std.debug.print("Test: {?}\n", .{x.root.data.child[2].?.data.child[1].?.data.value});
-    std.debug.print("Test: {?}\n", .{x.root.data.child[2].?.data.child[2].?.data.value});
-
-    std.debug.print("Test: {?}\n", .{x.root.data.child[3].?.data.child[0].?.data.value});
-    std.debug.print("Test: {?}\n", .{x.root.data.child[3].?.data.child[1].?.data.value});
-    std.debug.print("Test: {?}\n", .{x.root.data.child[3].?.data.child[2].?.data.value});
-    std.debug.print("Test: {?}\n", .{x.root.data.child[3].?.data.child[3].?.data.value});
-}
-
-test "Insert 13" {
-    var x = try QTlt.init(testing.allocator, {});
-    defer x.deinit();
-
-    try x.insert(1);
-    try x.insert(2);
-    try x.insert(3);
-    try x.insert(4);
-    try x.insert(5);
-    try x.insert(6);
-    try x.insert(7);
-    try x.insert(8);
-    try x.insert(9);
-    try x.insert(10);
-    try x.insert(11);
-    try x.insert(12);
-    try x.insert(13);
-
-    std.debug.print("Test: {?}\n", .{x.root.data.child[0].?.data.child[0].?.data.child[0].?.data.value});
-    std.debug.print("Test: {?}\n", .{x.root.data.child[0].?.data.child[0].?.data.child[1].?.data.value});
-    std.debug.print("Test: {?}\n", .{x.root.data.child[0].?.data.child[0].?.data.child[2].?.data.value});
-
-    std.debug.print("Test: {?}\n", .{x.root.data.child[0].?.data.child[1].?.data.child[0].?.data.value});
-    std.debug.print("Test: {?}\n", .{x.root.data.child[0].?.data.child[1].?.data.child[1].?.data.value});
-    std.debug.print("Test: {?}\n", .{x.root.data.child[0].?.data.child[1].?.data.child[2].?.data.value});
-
-    std.debug.print("Test: {?}\n", .{x.root.data.child[0].?.data.child[2].?.data.child[0].?.data.value});
-    std.debug.print("Test: {?}\n", .{x.root.data.child[0].?.data.child[2].?.data.child[1].?.data.value});
-    std.debug.print("Test: {?}\n", .{x.root.data.child[0].?.data.child[2].?.data.child[2].?.data.value});
-
-    std.debug.print("Test: {?}\n", .{x.root.data.child[1].?.data.child[0].?.data.child[0].?.data.value});
-    std.debug.print("Test: {?}\n", .{x.root.data.child[1].?.data.child[0].?.data.child[1].?.data.value});
-    std.debug.print("Test: {?}\n", .{x.root.data.child[1].?.data.child[0].?.data.child[2].?.data.value});
-
-    std.debug.print("Test: {?}\n", .{x.root.data.child[1].?.data.child[1].?.data.child[0].?.data.value});
-    std.debug.print("Test: {?}\n", .{x.root.data.child[1].?.data.child[1].?.data.child[1].?.data.value});
-}
-
-test "Root min" {
-    var x = try QTlt.init(testing.allocator, {});
-    defer x.deinit();
-
-    try x.insert(7);
-    std.debug.print("Min: {?}\n", .{x.root.p.?.data.value.?});
-    try x.insert(12);
-    std.debug.print("Min: {?}\n", .{x.root.p.?.data.value.?});
-    try x.insert(6);
-    std.debug.print("Min: {?}\n", .{x.root.p.?.data.value.?});
-    try x.insert(3);
-    std.debug.print("Min: {?}\n", .{x.root.p.?.data.value.?});
-    try x.insert(2);
-    std.debug.print("Min: {?}\n", .{x.root.p.?.data.value.?});
-    try x.insert(4);
-    std.debug.print("Min: {?}\n", .{x.root.p.?.data.value.?});
-    try x.insert(5);
-    std.debug.print("Min: {?}\n", .{x.root.p.?.data.value.?});
-    try x.insert(9);
-    std.debug.print("Min: {?}\n", .{x.root.p.?.data.value.?});
-    try x.insert(10);
-    std.debug.print("Min: {?}\n", .{x.root.p.?.data.value.?});
-    try x.insert(11);
-    std.debug.print("Min: {?}\n", .{x.root.p.?.data.value.?});
-    try x.insert(13);
-    std.debug.print("Min: {?}\n", .{x.root.p.?.data.value.?});
-    try x.insert(1);
-    std.debug.print("Min: {?}\n", .{x.root.p.?.data.value.?});
+    try qt.insert(7);
+    try testing.expect(7 == qt.root.p.?.data.value);
+    try qt.insert(12);
+    try testing.expect(7 == qt.root.p.?.data.value);
+    try qt.insert(6);
+    try testing.expect(6 == qt.root.p.?.data.value);
+    try qt.insert(3);
+    try testing.expect(3 == qt.root.p.?.data.value);
+    try qt.insert(2);
+    try testing.expect(2 == qt.root.p.?.data.value);
+    try qt.insert(4);
+    try testing.expect(2 == qt.root.p.?.data.value);
+    try qt.insert(5);
+    try testing.expect(2 == qt.root.p.?.data.value);
+    try qt.insert(9);
+    try testing.expect(2 == qt.root.p.?.data.value);
+    try qt.insert(10);
+    try testing.expect(2 == qt.root.p.?.data.value);
+    try qt.insert(11);
+    try testing.expect(2 == qt.root.p.?.data.value);
+    try qt.insert(13);
+    try testing.expect(2 == qt.root.p.?.data.value);
+    try qt.insert(1);
+    try testing.expect(1 == qt.root.p.?.data.value);
 }
 
 test "Print Tree" {
-    var x = try QTlt.init(testing.allocator, {});
-    defer x.deinit();
+    var qt = try QTlt.init(testing.allocator, {});
+    defer qt.deinit();
     std.debug.print("PRINT TREE TEST: \n", .{});
-    try x.insert(1);
-    try x.insert(2);
-    try x.insert(3);
-    try x.insert(4);
-    try x.insert(5);
-    try x.insert(6);
-    try x.insert(7);
-    try x.insert(8);
-    try x.insert(9);
-    try x.insert(10);
-    try x.insert(11);
-    try x.insert(12);
-    try x.insert(13);
-    try print_tree(QTlt, &x);
+    try qt.insert(1);
+    try qt.insert(2);
+    try qt.insert(3);
+    try qt.insert(4);
+    try qt.insert(5);
+    try qt.insert(6);
+    try qt.insert(7);
+    try qt.insert(8);
+    try qt.insert(9);
+    try qt.insert(10);
+    try qt.insert(11);
+    try qt.insert(12);
+    try qt.insert(13);
+    try print_tree(QTlt, &qt);
 }
