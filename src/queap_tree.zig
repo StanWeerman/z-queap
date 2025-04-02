@@ -53,10 +53,10 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
             /// Number of children
             count: Count,
 
-            parent: ?*@This() = null,
+            parent: ?*TreeNode = null,
 
             /// Pointer to hv or cv
-            p: ?*@This() = null,
+            p: ?*TreeNode = null,
 
             /// Hv or Cv
             hvcv: bool,
