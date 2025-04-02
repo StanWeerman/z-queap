@@ -68,13 +68,19 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
         pub fn init(allocator: Allocator, context: Context) Allocator.Error!Self {
             const root_node = try allocator.create(TreeNode);
             const max_leaf = try allocator.create(TreeNode);
-            max_leaf.* = .{ .count = Count.Leaf, .data = .{ .value = null }, .hvcv = false };
-            root_node.* = .{ .count = Count.One, .data = .{
-                .child = .{null} ** 4,
-            }, .hvcv = true, .p = max_leaf };
-            root_node.data.child[0] = max_leaf;
-            max_leaf.parent = root_node;
-            max_leaf.p = max_leaf;
+            max_leaf.* = .{
+                .count = Count.Leaf,
+                .data = .{ .value = null },
+                .hvcv = false,
+                .p = max_leaf,
+                .parent = root_node,
+            };
+            root_node.* = .{
+                .count = Count.One,
+                .data = .{ .child = .{ max_leaf, null, null, null } },
+                .hvcv = true,
+                .p = max_leaf,
+            };
             return Self{ .allocator = allocator, .root = root_node, .context = context };
         }
         pub fn deinit(self: *Self) void {
@@ -92,7 +98,7 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
                         return; // Return after finding root
                     }
                 },
-                else => { // General code for four below; nog even hier houden
+                else => {
                     head.count.subCount();
                     head = head.data.child[head.count.getIndex()].?;
                     continue :tr head.count;
@@ -114,9 +120,7 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
             tr: switch (parent.count) {
                 .Four => {
                     const new_parent = try self.allocator.create(TreeNode);
-                    new_parent.* = .{ .count = Count.Two, .data = .{
-                        .child = .{null} ** 4,
-                    }, .hvcv = true };
+                    new_parent.* = .{ .count = Count.Two, .data = .{ .child = .{null} ** 4 }, .hvcv = true };
                     parent.count = Count.Three;
                     new_parent.data.child[0] = parent.data.child[3];
                     new_parent.data.child[1] = new_node;
@@ -127,14 +131,10 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
 
                     new_parent.p = self.find_min_child(new_parent);
                     parent.p = self.find_min_child(parent);
-                    // self.update_hv(new_parent);
-                    // self.update_hv(parent);
 
                     if (parent == self.root) {
                         self.root = try self.allocator.create(TreeNode);
-                        self.root.* = .{ .count = Count.Two, .data = .{
-                            .child = .{null} ** 4,
-                        }, .hvcv = true, .p = parent.p };
+                        self.root.* = .{ .count = Count.Two, .data = .{ .child = .{null} ** 4 }, .hvcv = true, .p = parent.p };
                         self.root.data.child[0] = parent;
                         parent.hvcv = false;
                         self.root.data.child[1] = new_parent;
@@ -147,14 +147,6 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
                     }
                 },
                 else => {
-                    if (self.root.p.?.data.value) |old| {
-                        if (compareFn(self.context, old, element) != .lt) {
-                            self.root.p = new_node;
-                        }
-                    } else {
-                        self.root.p = new_node;
-                    }
-
                     const index = parent.count.getIndex();
                     parent.count.addCount();
                     parent.data.child[index] = new_node;
@@ -165,7 +157,6 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
             const last_parent: *TreeNode = tr: while (next_parent) |next| : (next_parent = next.parent) {
                 if (next.hvcv == true) {
                     next.p = self.find_min_child(next);
-                    // self.update_hv(next);
                 } else {
                     break :tr next;
                 }
@@ -190,7 +181,7 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
                     }
                     for (1..parent.count.getIndex()) |i| {
                         if (min == null or compareFn(self.context, min.?, children[i].?.p.?.data.value.?) != .lt) {
-                            min = children[i].?.p.?.data.value.?;
+                            min = children[i].?.p.?.data.value;
                             min_p = children[i].?.p;
                         }
                     }
@@ -200,8 +191,8 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
                     var min = val.*;
                     for (1..parent.count.getIndex()) |i| {
                         if (min == null or compareFn(self.context, min.?, parent.data.child[i].?.data.value.?) != .lt) {
-                            min = parent.data.child[i].?.data.value.?;
-                            min_p = parent.data.child[i].?;
+                            min = parent.data.child[i].?.data.value;
+                            min_p = parent.data.child[i];
                         }
                     }
                 },
@@ -226,7 +217,7 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
                     const new_min_p = self.find_min_child(next_node.parent.?);
                     if (min_p == null or compareFn(self.context, min_p.?.data.value.?, new_min_p.data.value.?) != .lt) min_p = new_min_p;
                     next_node.p = min_p;
-                    self.root.p = min_p; // Hmm
+                    self.root.p = min_p; // Is this correct?
                 },
             }
         }
