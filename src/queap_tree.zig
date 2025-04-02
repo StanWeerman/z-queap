@@ -386,3 +386,30 @@ test "Print Tree" {
     try qt.insert(13);
     try print_tree(QTlt, &qt);
 }
+
+test "Fuzz Testing Add" {
+    var prng = std.Random.DefaultPrng.init(blk: {
+        var seed: u64 = undefined;
+        try std.posix.getrandom(std.mem.asBytes(&seed));
+        break :blk seed;
+    });
+    const rand = prng.random();
+
+    for (1..100) |t| {
+        _ = t;
+        var qt = try QTlt.init(testing.allocator, {});
+        const max_leaf = qt.root.data.child[0].?;
+        defer qt.deinit();
+
+        var min: u8 = std.math.maxInt(u8);
+        for (0..rand.int(u8)) |i| {
+            _ = i;
+            const ele = rand.int(u8);
+            min = @min(min, ele);
+            try qt.insert(ele);
+            try testing.expect(min == qt.root.p.?.data.value);
+            try testing.expect(min == max_leaf.p.?.data.value);
+        }
+        // try print_tree(QTlt, &qt);
+    }
+}
