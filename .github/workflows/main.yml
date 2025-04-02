@@ -1,0 +1,24 @@
+name: Verify Queap
+  # You may pin to the exact commit or the version.
+  # uses: mlugg/setup-zig@a67e68dc5c8281d9608136d3d7ca1b282213e4ac
+  uses: mlugg/setup-zig@v1.2.1
+  with:
+    # Version of the Zig compiler, e.g. "0.13.0" or "0.13.0-dev.351+64ef45eb0". "master" uses the latest nightly build. "latest" uses the latest tagged release.
+    version: # default is latest
+    # Override of Zig download mirror to use, e.g. "https://pkg.machengine.org/zig".
+    mirror: # optional, default is 
+    # Whether to cache the global Zig cache directory.
+    use-cache: # default is true
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    name: Build and Test
+    steps:
+      - uses: actions/checkout@v3
+      - uses: mlugg/setup-zig@v1
+      - run: zig build test
