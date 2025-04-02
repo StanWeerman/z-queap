@@ -6,8 +6,6 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
     return struct {
         const Self = @This();
 
-        const dat = enum { value, child };
-
         const Count = enum(u3) {
             Leaf = 0,
             One = 1,
@@ -45,7 +43,7 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
         };
 
         const TreeNode = struct {
-            data: union(dat) {
+            data: union(enum) {
                 value: ?T,
                 /// Pointers to up to 4 children
                 child: [4]?*TreeNode,
