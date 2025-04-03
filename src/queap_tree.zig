@@ -180,7 +180,7 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
                         min = p.data.value;
                     }
                     for (1..parent.count.getIndex()) |i| {
-                        if (min == null or compareFn(self.context, min.?, children[i].?.p.?.data.value.?) != .lt) {
+                        if (min == null or compareFn(self.context, children[i].?.p.?.data.value.?, min.?) == .lt) {
                             min = children[i].?.p.?.data.value;
                             min_p = children[i].?.p;
                         }
@@ -190,7 +190,7 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
                     min_p = parent.data.child[0];
                     var min = val.*;
                     for (1..parent.count.getIndex()) |i| {
-                        if (min == null or compareFn(self.context, min.?, parent.data.child[i].?.data.value.?) != .lt) {
+                        if (min == null or compareFn(self.context, parent.data.child[i].?.data.value.?, min.?) == .lt) {
                             min = parent.data.child[i].?.data.value;
                             min_p = parent.data.child[i];
                         }
@@ -208,14 +208,14 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
                 .child => |children| {
                     next_node.p = null;
                     const new_min_p = self.find_min_child(next_node.parent.?);
-                    if (min_p == null or compareFn(self.context, min_p.?.data.value.?, new_min_p.data.value.?) != .lt) min_p = new_min_p;
+                    if (min_p == null or compareFn(self.context, new_min_p.data.value.?, min_p.?.data.value.?) == .lt) min_p = new_min_p;
                     next_node.p = min_p;
                     next_node = children[0].?;
                     continue :tr next_node.data;
                 },
                 .value => {
                     const new_min_p = self.find_min_child(next_node.parent.?);
-                    if (min_p == null or compareFn(self.context, min_p.?.data.value.?, new_min_p.data.value.?) != .lt) min_p = new_min_p;
+                    if (min_p == null or compareFn(self.context, new_min_p.data.value.?, min_p.?.data.value.?) == .lt) min_p = new_min_p;
                     next_node.p = min_p;
                     self.root.p = min_p; // Is this correct?
                 },
