@@ -224,7 +224,7 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
         pub fn find_node(self: *Self, element: T) !?*TreeNode {
             // Loop through cvs to find starting parent p; element > min
             var next_node = self.root.data.child[0].?;
-            var head = tr: switch (next_node.data) {
+            var parent_node = tr: switch (next_node.data) {
                 .child => {
                     switch (compareFn(self.context, element, next_node.p.?.data.value.?)) {
                         .gt => break :tr next_node.parent.?,
@@ -247,48 +247,26 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
             // Loop through subtree t - tp, eliminating subtrees with element < min
             var stack = std.ArrayList(*TreeNode).init(self.allocator);
             defer stack.deinit();
-            try stack.append(head);
+            for (1..parent_node.count.getIndex()) |i| try stack.append(parent_node.data.child[i].?);
+            // try stack.append(head);
             var next_result = stack.getLastOrNull();
             // var head = start_node;
             while (next_result) |next| : (next_result = stack.getLastOrNull()) {
-                var finishedSubtrees = false;
-
-                if (next.count == Count.Leaf) {
-                    finishedSubtrees = true;
-                } else {
-                    for (next.data.child) |kid| {
-                        if (kid) |kiddy| {
-                            if (kiddy == head) {
-                                finishedSubtrees = true;
-                            }
+                _ = stack.pop();
+                switch (next.data) {
+                    .child => {
+                        switch (compareFn(self.context, element, next.p.?.data.value.?)) {
+                            .gt => for (0..next.count.getIndex()) |i| try stack.append(next.data.child[i].?),
+                            .eq => return next.p,
+                            .lt => {},
                         }
-                    }
-                }
-
-                if (finishedSubtrees) {
-                    _ = stack.pop();
-                    if (next.count != Count.Leaf) {
-                        // std.debug.print("F: {?}\n", .{next.p.?.data.value});
-
-                        if (compareFn(self.context, element, next.p.?.data.value.?) == .eq) {
-                            return next.p;
+                    },
+                    .value => {
+                        switch (compareFn(self.context, element, next.data.value.?)) {
+                            .eq => return next,
+                            else => {},
                         }
-                    } else {
-                        // std.debug.print("F: {?}\n", .{next.data.value});
-                        if (compareFn(self.context, element, next.data.value.?) == .eq) {
-                            return next;
-                        }
-                    }
-                    // self.gpa.destroy(next);
-                    head = next;
-                } else {
-                    if (next.count != Count.Leaf) {
-                        for (next.data.child) |kid| {
-                            if (kid) |kiddy| {
-                                try stack.append(kiddy);
-                            }
-                        }
-                    }
+                    },
                 }
             }
             return null;
