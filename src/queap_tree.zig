@@ -180,7 +180,7 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
                         min = p.data.value;
                     }
                     for (1..parent.count.getIndex()) |i| {
-                        if (min == null or compareFn(self.context, min.?, children[i].?.p.?.data.value.?) != .lt) {
+                        if (min == null or compareFn(self.context, children[i].?.p.?.data.value.?, min.?) == .lt) {
                             min = children[i].?.p.?.data.value;
                             min_p = children[i].?.p;
                         }
@@ -190,7 +190,7 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
                     min_p = parent.data.child[0];
                     var min = val.*;
                     for (1..parent.count.getIndex()) |i| {
-                        if (min == null or compareFn(self.context, min.?, parent.data.child[i].?.data.value.?) != .lt) {
+                        if (min == null or compareFn(self.context, parent.data.child[i].?.data.value.?, min.?) == .lt) {
                             min = parent.data.child[i].?.data.value;
                             min_p = parent.data.child[i];
                         }
@@ -208,18 +208,66 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
                 .child => |children| {
                     next_node.p = null;
                     const new_min_p = self.find_min_child(next_node.parent.?);
-                    if (min_p == null or compareFn(self.context, min_p.?.data.value.?, new_min_p.data.value.?) != .lt) min_p = new_min_p;
+                    if (min_p == null or compareFn(self.context, new_min_p.data.value.?, min_p.?.data.value.?) == .lt) min_p = new_min_p;
                     next_node.p = min_p;
                     next_node = children[0].?;
                     continue :tr next_node.data;
                 },
                 .value => {
                     const new_min_p = self.find_min_child(next_node.parent.?);
-                    if (min_p == null or compareFn(self.context, min_p.?.data.value.?, new_min_p.data.value.?) != .lt) min_p = new_min_p;
+                    if (min_p == null or compareFn(self.context, new_min_p.data.value.?, min_p.?.data.value.?) == .lt) min_p = new_min_p;
                     next_node.p = min_p;
                     self.root.p = min_p; // Is this correct?
                 },
             }
+        }
+        pub fn find_node(self: *Self, element: T) !?*TreeNode {
+            // Loop through cvs to find starting parent p; element > min
+            var next_node = self.root.data.child[0].?;
+            const parent_node = tr: switch (next_node.data) {
+                .child => {
+                    switch (compareFn(self.context, element, next_node.p.?.data.value.?)) {
+                        .gt => break :tr next_node.parent.?,
+                        .eq => return next_node,
+                        .lt => {
+                            next_node = next_node.data.child[0].?;
+                            continue :tr next_node.data;
+                        },
+                    }
+                },
+                .value => {
+                    switch (compareFn(self.context, element, next_node.p.?.data.value.?)) {
+                        .gt => break :tr next_node.parent.?,
+                        .eq => return next_node,
+                        .lt => return null,
+                    }
+                },
+            };
+
+            // Loop through subtree t - tp, eliminating subtrees with element < min
+            var stack = std.ArrayList(*TreeNode).init(self.allocator);
+            defer stack.deinit();
+            for (1..parent_node.count.getIndex()) |i| try stack.append(parent_node.data.child[i].?);
+            var next_result = stack.getLastOrNull();
+            while (next_result) |next| : (next_result = stack.getLastOrNull()) {
+                _ = stack.pop();
+                switch (next.data) {
+                    .child => {
+                        switch (compareFn(self.context, element, next.p.?.data.value.?)) {
+                            .gt => for (0..next.count.getIndex()) |i| try stack.append(next.data.child[i].?),
+                            .eq => return next.p,
+                            .lt => {},
+                        }
+                    },
+                    .value => {
+                        switch (compareFn(self.context, element, next.data.value.?)) {
+                            .eq => return next,
+                            else => {},
+                        }
+                    },
+                }
+            }
+            return null;
         }
     };
 }
@@ -389,6 +437,8 @@ test "Fuzz Testing Add" {
             try qt.insert(ele);
             try testing.expect(min == qt.root.p.?.data.value);
             try testing.expect(min == max_leaf.p.?.data.value);
+            // std.debug.print("New ele: {}\n", .{ele});
+            try testing.expect(try qt.find_node(ele) != null);
         }
         // try print_tree(QTlt, &qt);
     }
@@ -411,5 +461,6 @@ test "Print Tree" {
     try qt.insert(11);
     try qt.insert(12);
     try qt.insert(13);
+    try testing.expect(try qt.find_node(13) != null);
     try print_tree(QTlt, &qt);
 }
