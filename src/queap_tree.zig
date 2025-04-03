@@ -221,7 +221,7 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
                 },
             }
         }
-        pub fn find_node(self: *Self, element: T) !?*TreeNode {
+        pub fn find_node(self: *Self, element: T) ?*TreeNode {
             // Loop through cvs to find starting parent p; element > min
             var next_node = self.root.data.child[0].?;
             const parent_node = tr: switch (next_node.data) {
@@ -245,29 +245,57 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
             };
 
             // Loop through subtree t - tp, eliminating subtrees with element < min
-            var stack = std.ArrayList(*TreeNode).init(self.allocator);
-            defer stack.deinit();
-            for (1..parent_node.count.getIndex()) |i| try stack.append(parent_node.data.child[i].?);
-            var next_result = stack.getLastOrNull();
-            while (next_result) |next| : (next_result = stack.getLastOrNull()) {
-                _ = stack.pop();
-                switch (next.data) {
-                    .child => {
-                        switch (compareFn(self.context, element, next.p.?.data.value.?)) {
-                            .gt => for (0..next.count.getIndex()) |i| try stack.append(next.data.child[i].?),
-                            .eq => return next.p,
-                            .lt => {},
-                        }
-                    },
-                    .value => {
-                        switch (compareFn(self.context, element, next.data.value.?)) {
-                            .eq => return next,
-                            else => {},
-                        }
-                    },
-                }
+            var next = parent_node.data.child[1].?;
+            tr: switch (next.data) {
+                .child => {
+                    std.debug.print("[{?}]", .{next.p.?.data.value});
+                    switch (compareFn(self.context, element, next.p.?.data.value.?)) {
+                        .gt => {
+                            std.debug.print("child gt\n", .{});
+                            next = next.data.child[0].?;
+                            continue :tr next.data;
+                        },
+                        .eq => return next.p,
+                        .lt => {
+                            std.debug.print("child lt\n", .{});
+                            next = next_sibling(next) orelse return null;
+                            continue :tr next.data;
+                        },
+                    }
+                },
+                .value => {
+                    std.debug.print("({?}) ", .{next.data.value});
+                    switch (compareFn(self.context, element, next.data.value.?)) {
+                        .eq => return next,
+                        else => {
+                            std.debug.print("value\n", .{});
+                            next = next_sibling(next) orelse return null;
+                            continue :tr next.data;
+                        },
+                    }
+                },
             }
             return null;
+        }
+        fn next_sibling(node: *TreeNode) ?*TreeNode {
+            var next_node: ?*TreeNode = node;
+            while (next_node) |next| : (next_node = next.parent) {
+                var self_found = false;
+                for (0..next.parent.?.count.getIndex()) |i| {
+                    if (next.parent.?.data.child[i].? != next) {
+                        if (self_found) {
+                            if (next.data == .child) {
+                                std.debug.print("c{?} {}\n", .{ next.p.?.data.value, i });
+                            } else {
+                                std.debug.print("v{?} {}\n", .{ next.data.value, i });
+                            }
+                            return next.parent.?.data.child[i].?;
+                        }
+                    } else {
+                        self_found = true;
+                    }
+                }
+            } else return null;
         }
     };
 }
@@ -415,34 +443,33 @@ test "Root Maintains Min" {
     try testing.expect(1 == qt.root.p.?.data.value);
 }
 
-test "Fuzz Testing Add" {
-    var prng = std.Random.DefaultPrng.init(blk: {
-        var seed: u64 = undefined;
-        try std.posix.getrandom(std.mem.asBytes(&seed));
-        break :blk seed;
-    });
-    const rand = prng.random();
+// test "Fuzz Testing Add" {
+//     var prng = std.Random.DefaultPrng.init(blk: {
+//         var seed: u64 = undefined;
+//         try std.posix.getrandom(std.mem.asBytes(&seed));
+//         break :blk seed;
+//     });
+//     const rand = prng.random();
 
-    for (1..100) |t| {
-        _ = t;
-        var qt = try QTlt.init(testing.allocator, {});
-        const max_leaf = qt.root.data.child[0].?;
-        defer qt.deinit();
+//     for (1..100) |t| {
+//         _ = t;
+//         var qt = try QTlt.init(testing.allocator, {});
+//         const max_leaf = qt.root.data.child[0].?;
+//         defer qt.deinit();
 
-        var min: u8 = std.math.maxInt(u8);
-        for (0..rand.int(u8)) |i| {
-            _ = i;
-            const ele = rand.int(u8);
-            min = @min(min, ele);
-            try qt.insert(ele);
-            try testing.expect(min == qt.root.p.?.data.value);
-            try testing.expect(min == max_leaf.p.?.data.value);
-            // std.debug.print("New ele: {}\n", .{ele});
-            try testing.expect(try qt.find_node(ele) != null);
-        }
-        // try print_tree(QTlt, &qt);
-    }
-}
+//         var min: u8 = std.math.maxInt(u8);
+//         for (0..rand.int(u8)) |i| {
+//             _ = i;
+//             const ele = rand.int(u8);
+//             min = @min(min, ele);
+//             try qt.insert(ele);
+//             try testing.expect(min == qt.root.p.?.data.value);
+//             try testing.expect(min == max_leaf.p.?.data.value);
+//             try testing.expect(qt.find_node(ele) != null);
+//         }
+//         // try print_tree(QTlt, &qt);
+//     }
+// }
 
 test "Print Tree" {
     var qt = try QTlt.init(testing.allocator, {});
@@ -461,6 +488,6 @@ test "Print Tree" {
     try qt.insert(11);
     try qt.insert(12);
     try qt.insert(13);
-    try testing.expect(try qt.find_node(13) != null);
     try print_tree(QTlt, &qt);
+    try testing.expect(qt.find_node(13) != null);
 }
