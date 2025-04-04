@@ -221,7 +221,10 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
                 },
             }
         }
-        pub fn find_node(self: *Self, element: T) !?*TreeNode {
+
+        /// Function to find whether a node exists in the `QueapTree`\
+        /// Returns address to the found node `*TreeNode` or `null` if it is not in the tree.
+        pub fn find_node(self: *Self, element: T) ?*TreeNode {
             // Loop through cvs to find starting parent p; element > min
             var next_node = self.root.data.child[0].?;
             const parent_node = tr: switch (next_node.data) {
@@ -245,29 +248,67 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
             };
 
             // Loop through subtree t - tp, eliminating subtrees with element < min
-            var stack = std.ArrayList(*TreeNode).init(self.allocator);
-            defer stack.deinit();
-            for (1..parent_node.count.getIndex()) |i| try stack.append(parent_node.data.child[i].?);
-            var next_result = stack.getLastOrNull();
-            while (next_result) |next| : (next_result = stack.getLastOrNull()) {
-                _ = stack.pop();
-                switch (next.data) {
-                    .child => {
-                        switch (compareFn(self.context, element, next.p.?.data.value.?)) {
-                            .gt => for (0..next.count.getIndex()) |i| try stack.append(next.data.child[i].?),
-                            .eq => return next.p,
-                            .lt => {},
-                        }
-                    },
-                    .value => {
-                        switch (compareFn(self.context, element, next.data.value.?)) {
-                            .eq => return next,
-                            else => {},
-                        }
-                    },
-                }
+            var next = parent_node.data.child[1].?;
+            tr: switch (next.data) {
+                .child => {
+                    switch (compareFn(self.context, element, next.p.?.data.value.?)) {
+                        .gt => {
+                            next = next.data.child[0].?;
+                            continue :tr next.data;
+                        },
+                        .eq => return next.p,
+                        .lt => {
+                            switch (self.next_sibling(next, element)) {
+                                .found => |node| return node,
+                                .node => |node| next = node.data.child[0].?,
+                            }
+                            continue :tr next.data;
+                        },
+                    }
+                },
+                .value => {
+                    switch (compareFn(self.context, element, next.data.value.?)) {
+                        .eq => return next,
+                        else => {
+                            switch (self.next_sibling(next, element)) {
+                                .found => |node| return node,
+                                .node => |node| next = node.data.child[0].?,
+                            }
+                            continue :tr next.data;
+                        },
+                    }
+                },
             }
             return null;
+        }
+
+        /// Helper function that takes a `TreeNode` and returns either: `.node`, `.found` from
+        /// - Its next sibling - Its parent's next sibling - Its parent's parent's ...
+        fn next_sibling(self: Self, node: *TreeNode, element: T) union(enum) { found: ?*TreeNode, node: *TreeNode } {
+            var next_node: ?*TreeNode = node;
+            while (next_node) |next| : (if (next_node != self.root) {
+                next_node = next.parent;
+            } else {
+                next_node = null;
+            }) {
+                var self_found = false;
+                for (0..next.parent.?.count.getIndex()) |i| {
+                    if (next.parent.?.data.child[i].? != next) {
+                        if (self_found) {
+                            switch (next.data) {
+                                .child => switch (compareFn(self.context, element, next.parent.?.data.child[i].?.p.?.data.value.?)) {
+                                    .gt => return .{ .node = next.parent.?.data.child[i].? },
+                                    .eq => return .{ .found = next.parent.?.data.child[i].?.p },
+                                    .lt => {},
+                                },
+                                .value => if (compareFn(self.context, element, next.parent.?.data.child[i].?.data.value.?) == .eq) return .{ .found = next.parent.?.data.child[i] },
+                            }
+                        }
+                    } else {
+                        self_found = true;
+                    }
+                }
+            } else return .{ .found = null };
         }
     };
 }
@@ -423,7 +464,7 @@ test "Fuzz Testing Add" {
     });
     const rand = prng.random();
 
-    for (1..100) |t| {
+    for (0..100) |t| {
         _ = t;
         var qt = try QTlt.init(testing.allocator, {});
         const max_leaf = qt.root.data.child[0].?;
@@ -437,8 +478,7 @@ test "Fuzz Testing Add" {
             try qt.insert(ele);
             try testing.expect(min == qt.root.p.?.data.value);
             try testing.expect(min == max_leaf.p.?.data.value);
-            // std.debug.print("New ele: {}\n", .{ele});
-            try testing.expect(try qt.find_node(ele) != null);
+            try testing.expect(qt.find_node(ele) != null);
         }
         // try print_tree(QTlt, &qt);
     }
@@ -461,6 +501,6 @@ test "Print Tree" {
     try qt.insert(11);
     try qt.insert(12);
     try qt.insert(13);
-    try testing.expect(try qt.find_node(13) != null);
     try print_tree(QTlt, &qt);
+    try testing.expect(qt.find_node(13) != null);
 }
