@@ -320,6 +320,16 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
                 }
             } else return .{ .found = null };
         }
+        pub fn remove_min(self: *Self) T {
+            return self.delete_node(self.root.p.?);
+        }
+        pub fn remove(self: *Self, element: T) T {
+            return self.delete_node(self.find_node(element));
+        }
+        pub fn delete_node(self: *Self, node: *TreeNode) T {
+            _ = self;
+            _ = node;
+        }
     };
 }
 
