@@ -323,12 +323,97 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
         pub fn remove_min(self: *Self) T {
             return self.delete_node(self.root.p.?);
         }
-        pub fn remove(self: *Self, element: T) T {
-            return self.delete_node(self.find_node(element));
+        pub fn remove(self: *Self, element: T) ?T {
+            const node = self.find_node(element) orelse return null;
+            return self.delete_node(node);
         }
         pub fn delete_node(self: *Self, node: *TreeNode) T {
-            _ = self;
-            _ = node;
+            const ret = node.data.value.?;
+            // Stage 1: get parent, remove node, move siblings into empty slot
+            var parent = node.parent.?;
+            var node_found = false;
+            for (0..parent.count.getIndex()) |i| {
+                if (parent.data.child[i] != node) {
+                    if (node_found) {
+                        parent.data.child[i - 1] = parent.data.child[i];
+                    }
+                } else {
+                    node_found = true;
+                }
+            }
+            parent.count.subCount();
+            parent.data.child[parent.count.getIndex()] = null;
+            self.allocator.destroy(node);
+
+            // Stage 2: if parent.count is 1, we need to borrow from or join a sibling recursively
+            tr: switch (parent.count) {
+                .One => { // Nodes need >1 children; check siblings for borrow or join
+                    // Get Parent index
+                    node = parent;
+                    parent = parent.parent;
+                    const parent_index = for (0..parent.count.getIndex()) |i| {
+                        if (parent.data.child[i] == node) {
+                            break i;
+                        }
+                    } else unreachable;
+
+                    var left_join = false;
+                    var right_join = false;
+                    if (parent_index > 0) {
+                        left_join = true;
+                        const left_sibling = parent[parent_index - 1];
+                        if (left_sibling.count.getIndex() > 3) { // Borrow from the left
+                            node.count.addCount();
+                            left_sibling.count.subCount();
+                            node[1] = left_sibling.data.child[left_sibling.count.getIndex()];
+                            node[1].parent = node;
+                            left_sibling.data.child[left_sibling.count.getIndex()] = null;
+                        }
+                    } else if (parent_index < parent.count.getIndex() - 1) {
+                        right_join = true;
+                        const right_sibling = parent[parent_index + 1];
+                        if (right_sibling.count.getIndex() > 3) { // Borrow from the right
+                            node.count.addCount();
+                            right_sibling.count.subCount();
+                            node[1] = right_sibling.data.child[right_sibling.count.getIndex()];
+                            node[1].parent = node;
+                            right_sibling.data.child[right_sibling.count.getIndex()] = null;
+                        }
+                    } else {
+                        if (left_join) { // Join the left
+                            const left_sibling = parent[parent_index - 1];
+                            left_sibling[2] = node[0];
+                            left_sibling[2].parent = left_sibling;
+                            left_sibling.count.addCount();
+                        } else if (right_join) { // Join from the left
+                            const right_sibling = parent[parent_index - 1];
+                            right_sibling[2] = node[0];
+                            right_sibling[2].parent = right_sibling;
+                            right_sibling.count.addCount();
+                        }
+
+                        node_found = false;
+                        for (0..parent.count.getIndex()) |i| {
+                            if (parent.data.child[i] != node) {
+                                if (node_found) {
+                                    parent.data.child[i - 1] = parent.data.child[i];
+                                }
+                            } else {
+                                node_found = true;
+                            }
+                        }
+                        parent.count.subCount();
+                        parent.data.child[parent.count.getIndex()] = null;
+                        self.allocator.destroy(node);
+
+                        continue :tr parent.count; // On join, recurse to parent
+                    }
+                },
+                .Four, .Three, .Two => {}, // Done!
+                .Leaf => unreachable,
+            }
+
+            return ret; // Return deleted value at the end
         }
     };
 }
