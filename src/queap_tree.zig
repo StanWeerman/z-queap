@@ -77,7 +77,7 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
             };
             root_node.* = .{
                 .count = Count.One,
-                .data = .{ .child = .{ max_leaf, null, null, null } },
+                .data = .{ .child = .{max_leaf} ++ .{null} ** 3 },
                 .hvcv = true,
                 .p = max_leaf,
             };
@@ -115,15 +115,22 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
         pub fn add_node(self: *Self, parent_node: *TreeNode, element: T) Allocator.Error!void {
             var parent = parent_node;
             var new_node = try self.allocator.create(TreeNode);
-            new_node.* = .{ .count = Count.Leaf, .data = .{ .value = element }, .hvcv = true };
+            new_node.* = .{
+                .count = Count.Leaf,
+                .data = .{ .value = element },
+                .hvcv = true,
+            };
 
             tr: switch (parent.count) {
                 .Four => {
                     const new_parent = try self.allocator.create(TreeNode);
-                    new_parent.* = .{ .count = Count.Two, .data = .{ .child = .{null} ** 4 }, .hvcv = true };
+                    new_parent.* = .{
+                        .count = Count.Two,
+                        .data = .{ .child = .{ parent.data.child[3], new_node, null, null } },
+                        .hvcv = true,
+                    };
                     parent.count = Count.Three;
-                    new_parent.data.child[0] = parent.data.child[3];
-                    new_parent.data.child[1] = new_node;
+
                     new_parent.data.child[0].?.parent = new_parent;
                     new_parent.data.child[1].?.parent = new_parent;
 
@@ -134,10 +141,13 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
 
                     if (parent == self.root) {
                         self.root = try self.allocator.create(TreeNode);
-                        self.root.* = .{ .count = Count.Two, .data = .{ .child = .{null} ** 4 }, .hvcv = true, .p = parent.p };
-                        self.root.data.child[0] = parent;
+                        self.root.* = .{
+                            .count = Count.Two,
+                            .data = .{ .child = .{ parent, new_parent, null, null } },
+                            .hvcv = true,
+                            .p = parent.p,
+                        };
                         parent.hvcv = false;
-                        self.root.data.child[1] = new_parent;
                         parent.parent = self.root;
                         new_parent.parent = self.root;
                     } else {
@@ -293,7 +303,7 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
             }) {
                 var self_found = false;
                 for (0..next.parent.?.count.getIndex()) |i| {
-                    if (next.parent.?.data.child[i].? != next) {
+                    if (next.parent.?.data.child[i] != next) {
                         if (self_found) {
                             switch (next.data) {
                                 .child => switch (compareFn(self.context, element, next.parent.?.data.child[i].?.p.?.data.value.?)) {
