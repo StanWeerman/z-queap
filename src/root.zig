@@ -4,12 +4,13 @@
 const std = @import("std");
 const QueapList = @import("queap_list.zig").QueapList;
 const QueapTree = @import("queap_tree.zig").QueapTree;
+const Queap = @import("queap.zig").Queap;
 
 const testing = std.testing;
 
 test "List 1" {
-    var alloc = testing.allocator;
-    var ql = QueapList(u8).init(&alloc);
+    const alloc = testing.allocator;
+    var ql = QueapList(u8).init(alloc);
     defer ql.deinit();
 
     try ql.add(1);
@@ -28,6 +29,15 @@ test "Tree 1" {
     try qt.insert(1);
     try qt.insert(2);
     try qt.insert(3);
+    defer qt.deinit();
+}
+
+test "Queap 1" {
+    const Qlt = Queap(u8, void, lessThan);
+    var qt = try Qlt.init(testing.allocator, {});
+    // try qt.insert(1);
+    // try qt.insert(2);
+    // try qt.insert(3);
     defer qt.deinit();
 }
 

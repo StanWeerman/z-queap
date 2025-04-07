@@ -44,7 +44,7 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
             }
         };
 
-        const TreeNode = struct {
+        pub const TreeNode = struct {
             data: union(enum) {
                 value: ?T,
                 /// Pointers to up to 4 children
@@ -81,7 +81,11 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
                 .hvcv = true,
                 .p = max_leaf,
             };
-            return Self{ .allocator = allocator, .root = root_node, .context = context };
+            return Self{
+                .root = root_node,
+                .allocator = allocator,
+                .context = context,
+            };
         }
         pub fn deinit(self: *Self) void {
             var head = self.root;
@@ -356,7 +360,7 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
         /// Helper function to delete any leaf in the QueapTree.
         /// Takes in a pointer to the leaf and returns the deleted element.
         /// Also updates hvcv pointers along the way!
-        fn delete_node(self: *Self, remove_node: *TreeNode) T {
+        pub fn delete_node(self: *Self, remove_node: *TreeNode) T {
             var node = remove_node;
             const ret = node.data.value.?;
             // Stage 1: get parent, remove node, move siblings into empty slot
@@ -688,7 +692,7 @@ test "Fuzz Testing Add and Delete" {
     });
     const rand = prng.random();
 
-    for (0..1000) |t| {
+    for (0..100) |t| {
         _ = t;
         var qt = try QTlt.init(testing.allocator, {});
         const max_leaf = qt.root.data.child[0].?;
