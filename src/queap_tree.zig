@@ -398,59 +398,46 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
                         }
                     } else unreachable;
 
-                    var left_join = false;
-                    var right_join = false;
+                    var join = false;
+                    var borrow = false;
+                    var sibling = node;
+
                     if (parent_index > 0) {
-                        left_join = true;
-                        const left_sibling = parent.data.child[parent_index - 1].?;
-                        if (left_sibling.count.getIndex() > 2) { // Borrow from the left
-                            node.count.addCount();
-                            left_sibling.count.subCount();
-                            node.data.child[1] = left_sibling.data.child[left_sibling.count.getIndex()];
-                            node.data.child[1].?.parent = node;
-                            left_sibling.data.child[left_sibling.count.getIndex()] = null;
-                            node.p = self.find_min_child(node);
-                            left_sibling.p = self.find_min_child(left_sibling);
-                            break :tr;
+                        sibling = parent.data.child[parent_index - 1].?;
+                        if (sibling.count.getIndex() == 2) join = true else borrow = true;
+                    }
+                    if (!borrow and parent_index < parent.count.getIndex() - 1) {
+                        if (parent.data.child[parent_index + 1].?.count.getIndex() > 2) {
+                            sibling = parent.data.child[parent_index + 1].?;
+                            borrow = true;
+                        } else if (!join) {
+                            sibling = node;
+                            node = parent.data.child[parent_index + 1].?;
+
+                            sibling.data.child[1] = node.data.child[1];
+                            sibling.data.child[1].?.parent = sibling;
+                            node.data.child[1] = null;
+                            sibling.count.addCount();
+                            node.count.subCount();
                         }
                     }
-                    if (parent_index < parent.count.getIndex() - 1) {
-                        right_join = true;
-                        const right_sibling = parent.data.child[parent_index + 1].?;
-                        if (right_sibling.count.getIndex() > 2) { // Borrow from the right
-                            node.count.addCount();
-                            right_sibling.count.subCount();
-                            node.data.child[1] = right_sibling.data.child[right_sibling.count.getIndex()];
-                            node.data.child[1].?.parent = node;
-                            right_sibling.data.child[right_sibling.count.getIndex()] = null;
-                            node.p = self.find_min_child(node);
-                            right_sibling.p = self.find_min_child(right_sibling);
-                            break :tr;
-                        }
-                    }
-                    if (left_join or right_join) {
-                        var r_node = node;
-                        if (left_join) { // Join the left
-                            const left_sibling = parent.data.child[parent_index - 1].?;
-                            left_sibling.data.child[2] = node.data.child[0];
-                            left_sibling.data.child[2].?.parent = left_sibling;
-                            left_sibling.count.addCount();
-                            node = left_sibling;
-                        } else if (right_join) { // Join from the left
-                            const right_sibling = parent.data.child[parent_index + 1].?;
-                            node.data.child[1] = right_sibling.data.child[0];
-                            node.data.child[2] = right_sibling.data.child[1];
-                            node.data.child[1].?.parent = node;
-                            node.data.child[2].?.parent = node;
-                            node.count = .Three;
-                            r_node = right_sibling;
-                            // right_sibling.data.child[2] = node.data.child[0];
-                            // right_sibling.data.child[2].?.parent = right_sibling;
-                            // right_sibling.count.addCount();
-                        }
+
+                    if (borrow) {
+                        node.count.addCount();
+                        sibling.count.subCount();
+                        node.data.child[1] = sibling.data.child[sibling.count.getIndex()];
+                        node.data.child[1].?.parent = node;
+                        sibling.data.child[sibling.count.getIndex()] = null;
+                        sibling.p = self.find_min_child(sibling);
+                        node.p = self.find_min_child(node);
+                    } else {
+                        sibling.data.child[2] = node.data.child[0];
+                        sibling.data.child[2].?.parent = sibling;
+                        sibling.count.addCount();
+
                         node_found = false;
                         for (0..parent.count.getIndex()) |i| {
-                            if (parent.data.child[i] != r_node) {
+                            if (parent.data.child[i] != node) {
                                 if (node_found) {
                                     parent.data.child[i - 1] = parent.data.child[i];
                                 }
@@ -460,12 +447,12 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
                         }
                         parent.count.subCount();
                         parent.data.child[parent.count.getIndex()] = null;
-                        self.allocator.destroy(r_node);
+                        self.allocator.destroy(node);
 
+                        node = sibling;
                         node.p = self.find_min_child(node);
                         continue :tr parent.count; // On join, recurse to parent
                     }
-                    node.p = self.find_min_child(node);
                 },
                 .Four, .Three, .Two => {}, // Done!
                 .Leaf => unreachable,
