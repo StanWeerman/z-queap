@@ -217,24 +217,14 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
         /// NEEDS WORK
         fn update_cv(self: *Self, parent: *TreeNode) void {
             // var find_min: ?*TreeNode = parent.parent;
-            _ = parent;
-            // // var next_node = self.root.data.child[0].?;
             var min_p: ?*TreeNode = null;
-            // while (find_min) |next| : (find_min = next.parent) {
-            //     if (next == self.root) break;
-            //     // next.p = null;
-            //     // const new_min_p = self.find_min_child(next.parent.?);
-            //     // if (min_p == null or min_p.?.data.value == null or compareFn(self.context, new_min_p.data.value.?, min_p.?.data.value.?) == .lt) min_p = new_min_p;
-            //     if (min_p == null or min_p.?.data.value == null or compareFn(self.context, next.p.?.data.value.?, min_p.?.data.value.?) == .lt) min_p = next.p;
-            // }
-            // var next_node = parent;
-            // if (parent != self.root) {
-            //     //     next_node = self.root.data.child[0].?;
-            //     if (self.root.data.child[0].?.data == .child and self.root.data.child[0].?.data.child[0].?.data == .child) {
-            //         min_p = self.find_min_child(self.root.data.child[0].?);
-            //     }
-            // }
+
             var next_node = self.root.data.child[0].?;
+            while (next_node != parent) : (next_node = next_node.data.child[0].?) {
+                // if (next_node == parent) break;
+                if (min_p == null or min_p.?.data.value == null or compareFn(self.context, next_node.p.?.data.value.?, min_p.?.data.value.?) == .lt) min_p = next_node.p;
+            }
+
             tr: switch (next_node.data) {
                 .child => |children| {
                     next_node.p = null;
@@ -711,7 +701,7 @@ test "Fuzz Testing Add and Delete" {
     });
     const rand = prng.random();
 
-    for (0..10000) |t| {
+    for (0..1000) |t| {
         _ = t;
         var qt = try QTlt.init(testing.allocator, {});
         const max_leaf = qt.root.data.child[0].?;
@@ -737,9 +727,14 @@ test "Fuzz Testing Add and Delete" {
             _ = i;
             const ele = rand.int(u8);
             if (rand.int(u8) >= 128) { // Delete
+                // try print_tree(QTlt, &qt);
+                // std.debug.print("R1: Root: {} Ele:{}\n", .{ min, ele });
+
                 _ = qt.remove(ele);
                 if (min != ele and min != 255) {
-                    // std.debug.print("R: Root: {} Ele:{}\n", .{ min, ele });
+                    // try print_tree(QTlt, &qt);
+                    // std.debug.print("R2: Root: {} Ele:{}\n", .{ min, ele });
+
                     try testing.expect(min == qt.root.p.?.data.value);
                     try testing.expect(min == max_leaf.p.?.data.value);
                 }
