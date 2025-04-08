@@ -718,32 +718,17 @@ test "Fuzz Testing Add and Delete" {
             _ = i;
             const ele = rand.int(u8);
             if (rand.int(u8) >= 128) { // Delete
-                // try print_tree(QTlt, &qt);
-                // std.debug.print("R1: Root: {} Ele:{}\n", .{ min, ele });
-
                 _ = qt.remove(ele);
                 if (min != ele and min != 255) {
-                    // try print_tree(QTlt, &qt);
-                    // std.debug.print("R2: Root: {} Ele:{}\n", .{ min, ele });
-
                     try testing.expect(min == qt.root.p.?.data.value);
                     try testing.expect(min == max_leaf.p.?.data.value);
                 }
-                // try print_tree(QTlt, &qt);
-                // std.debug.print("R: Root: {} Ele:{}\n", .{ min, ele });
-
-                // if (qt.find_node(ele) != null) {
-                //     std.debug.print("Node: {any}\n", .{qt.find_node(ele)});
-                // }
-
                 try testing.expect(qt.find_node(ele) == null);
                 min = qt.root.p.?.data.value orelse 255;
             } else { // Add
                 if (qt.find_node(ele) == null and ele != 0) {
                     min = @min(min, ele);
                     try qt.insert(ele);
-                    // try print_tree(QTlt, &qt);
-                    // std.debug.print("A: Root: {} Ele:{}\n", .{ min, ele });
                     try testing.expectEqual(min, qt.root.p.?.data.value);
                     try testing.expect(min == max_leaf.p.?.data.value);
                     try testing.expect(qt.find_node(ele) != null);
@@ -759,17 +744,9 @@ test "Fuzz Testing Add and Delete" {
                 try testing.expect(min == qt.root.p.?.data.value);
                 try testing.expect(min == max_leaf.p.?.data.value);
             }
-            // try print_tree(QTlt, &qt);
-            // std.debug.print("R: Root: {} Ele:{}\n", .{ min, ele });
-
-            // if (qt.find_node(ele) != null) {
-            //     std.debug.print("Node: {any}\n", .{qt.find_node(ele)});
-            // }
             try testing.expect(qt.find_node(ele) == null);
             min = qt.root.p.?.data.value orelse 255;
         }
-
-        // try print_tree(QTlt, &qt);
     }
 }
 

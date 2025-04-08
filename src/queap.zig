@@ -166,6 +166,8 @@ test "Fuzz Testing Queap" {
         var queap = try Qlt.init(testing.allocator, {});
         defer queap.deinit();
 
+        var n: usize = 0;
+
         var min: u8 = std.math.maxInt(u8);
 
         // Add
@@ -175,6 +177,8 @@ test "Fuzz Testing Queap" {
             if (queap.find_node(ele) == null) {
                 min = @min(min, ele);
                 try queap.insert(ele);
+                n += 1;
+                try testing.expect(n == queap.n);
                 try testing.expect(queap.find_node(ele) != null);
                 try testing.expect(min == queap.minimum());
             }
@@ -185,7 +189,9 @@ test "Fuzz Testing Queap" {
             _ = i;
             const ele = rand.int(u8);
             if (rand.int(u8) >= 128) { // Delete
-                _ = try queap.remove(ele);
+                if (try queap.remove(ele) != null)
+                    n -= 1;
+                try testing.expect(n == queap.n);
                 if (min != ele and min != 255) {
                     try testing.expect(min == queap.minimum());
                 }
@@ -195,6 +201,8 @@ test "Fuzz Testing Queap" {
                 if (queap.find_node(ele) == null) {
                     min = @min(min, ele);
                     try queap.insert(ele);
+                    n += 1;
+                    try testing.expect(n == queap.n);
                     try testing.expect(min == queap.minimum());
                     try testing.expect(queap.find_node(ele) != null);
                 }
@@ -204,7 +212,9 @@ test "Fuzz Testing Queap" {
         for (0..rand.int(u8)) |i| {
             _ = i;
             const ele = rand.int(u8);
-            _ = try queap.remove(ele);
+            if (try queap.remove(ele) != null)
+                n -= 1;
+            try testing.expect(n == queap.n);
             if (min != ele and min != 255) {
                 try testing.expect(min == queap.minimum());
             }

@@ -4,7 +4,7 @@
 const std = @import("std");
 const QueapList = @import("queap_list.zig").QueapList;
 const QueapTree = @import("queap_tree.zig").QueapTree;
-const Queap = @import("queap.zig").Queap;
+pub const Queap = @import("queap.zig").Queap;
 
 const testing = std.testing;
 
