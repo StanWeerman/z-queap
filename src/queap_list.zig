@@ -6,19 +6,23 @@ const Allocator = std.mem.Allocator;
 pub fn QueapList(comptime T: type) type {
     return struct {
         const Self = @This();
-        const Node = struct {
+        pub const Node = struct {
             next: ?*Node,
             data: T,
         };
 
         head: ?*Node = null,
         tail: ?*Node = null,
-        allocator: *std.mem.Allocator,
+        allocator: Allocator,
 
         /// Initialize and return QueapList. Takes a pointer to an Allocator (from Queap).
         /// Deinitialize with `deinit` or use `toOwnedSlice`.
-        pub fn init(allocator: *Allocator) Self {
-            return Self{ .head = null, .tail = null, .allocator = allocator };
+        pub fn init(allocator: Allocator) Self {
+            return Self{
+                .head = null,
+                .tail = null,
+                .allocator = allocator,
+            };
         }
 
         /// Insert a new element to the back of the QueapList.
@@ -69,7 +73,7 @@ fn print(comptime T: type, ql: *QueapList(T)) void {
 var test_allocator = testing.allocator;
 
 test "List 1" {
-    var ql = QueapList(u8).init(&test_allocator);
+    var ql = QueapList(u8).init(test_allocator);
     defer ql.deinit();
 
     try ql.add(1);
@@ -78,8 +82,8 @@ test "List 1" {
 }
 
 test "Failed Allocation" {
-    var failing_allocator = testing.failing_allocator;
-    var ql = QueapList(u8).init(&failing_allocator);
+    // var failing_allocator = testing.failing_allocator;
+    var ql = QueapList(u8).init(testing.failing_allocator);
     defer ql.deinit();
 
     _ = ql.add(1) catch |err| {
@@ -89,7 +93,7 @@ test "Failed Allocation" {
 }
 
 test "List 1 2 3" {
-    var ql = QueapList(u8).init(&test_allocator);
+    var ql = QueapList(u8).init(test_allocator);
     defer ql.deinit();
 
     try ql.add(1);
@@ -102,7 +106,7 @@ test "List 1 2 3" {
 }
 
 test "List 1 2 3 Destroy" {
-    var ql = QueapList(u8).init(&test_allocator);
+    var ql = QueapList(u8).init(test_allocator);
     defer ql.deinit();
 
     try ql.add(1);
@@ -118,7 +122,7 @@ test "List 1 2 3 Destroy" {
 }
 
 test "List 1 2 3 Destroy 1 2 3" {
-    var ql = QueapList(u8).init(&test_allocator);
+    var ql = QueapList(u8).init(test_allocator);
     defer ql.deinit();
 
     try ql.add(1);
@@ -143,7 +147,7 @@ test "List 1 2 3 Destroy 1 2 3" {
 }
 
 test "List 1 2 3 Destroy 1 2 3 [3]u8" {
-    var ql = QueapList([3]u8).init(&test_allocator);
+    var ql = QueapList([3]u8).init(test_allocator);
     defer ql.deinit();
 
     try ql.add([_]u8{ 1, 1, 1 });

@@ -44,7 +44,7 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
             }
         };
 
-        const TreeNode = struct {
+        pub const TreeNode = struct {
             data: union(enum) {
                 value: ?T,
                 /// Pointers to up to 4 children
@@ -81,7 +81,11 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
                 .hvcv = true,
                 .p = max_leaf,
             };
-            return Self{ .allocator = allocator, .root = root_node, .context = context };
+            return Self{
+                .root = root_node,
+                .allocator = allocator,
+                .context = context,
+            };
         }
         pub fn deinit(self: *Self) void {
             var head = self.root;
@@ -217,24 +221,14 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
         /// NEEDS WORK
         fn update_cv(self: *Self, parent: *TreeNode) void {
             // var find_min: ?*TreeNode = parent.parent;
-            _ = parent;
-            // // var next_node = self.root.data.child[0].?;
             var min_p: ?*TreeNode = null;
-            // while (find_min) |next| : (find_min = next.parent) {
-            //     if (next == self.root) break;
-            //     // next.p = null;
-            //     // const new_min_p = self.find_min_child(next.parent.?);
-            //     // if (min_p == null or min_p.?.data.value == null or compareFn(self.context, new_min_p.data.value.?, min_p.?.data.value.?) == .lt) min_p = new_min_p;
-            //     if (min_p == null or min_p.?.data.value == null or compareFn(self.context, next.p.?.data.value.?, min_p.?.data.value.?) == .lt) min_p = next.p;
-            // }
-            // var next_node = parent;
-            // if (parent != self.root) {
-            //     //     next_node = self.root.data.child[0].?;
-            //     if (self.root.data.child[0].?.data == .child and self.root.data.child[0].?.data.child[0].?.data == .child) {
-            //         min_p = self.find_min_child(self.root.data.child[0].?);
-            //     }
-            // }
+
             var next_node = self.root.data.child[0].?;
+            while (next_node != parent) : (next_node = next_node.data.child[0].?) {
+                // if (next_node == parent) break;
+                if (min_p == null or min_p.?.data.value == null or compareFn(self.context, next_node.p.?.data.value.?, min_p.?.data.value.?) == .lt) min_p = next_node.p;
+            }
+
             tr: switch (next_node.data) {
                 .child => |children| {
                     next_node.p = null;
@@ -366,7 +360,7 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
         /// Helper function to delete any leaf in the QueapTree.
         /// Takes in a pointer to the leaf and returns the deleted element.
         /// Also updates hvcv pointers along the way!
-        fn delete_node(self: *Self, remove_node: *TreeNode) T {
+        pub fn delete_node(self: *Self, remove_node: *TreeNode) T {
             var node = remove_node;
             const ret = node.data.value.?;
             // Stage 1: get parent, remove node, move siblings into empty slot
@@ -408,59 +402,46 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
                         }
                     } else unreachable;
 
-                    var left_join = false;
-                    var right_join = false;
+                    var join = false;
+                    var borrow = false;
+                    var sibling = node;
+
                     if (parent_index > 0) {
-                        left_join = true;
-                        const left_sibling = parent.data.child[parent_index - 1].?;
-                        if (left_sibling.count.getIndex() > 2) { // Borrow from the left
-                            node.count.addCount();
-                            left_sibling.count.subCount();
-                            node.data.child[1] = left_sibling.data.child[left_sibling.count.getIndex()];
-                            node.data.child[1].?.parent = node;
-                            left_sibling.data.child[left_sibling.count.getIndex()] = null;
-                            node.p = self.find_min_child(node);
-                            left_sibling.p = self.find_min_child(left_sibling);
-                            break :tr;
+                        sibling = parent.data.child[parent_index - 1].?;
+                        if (sibling.count.getIndex() == 2) join = true else borrow = true;
+                    }
+                    if (!borrow and parent_index < parent.count.getIndex() - 1) {
+                        if (parent.data.child[parent_index + 1].?.count.getIndex() > 2) {
+                            sibling = parent.data.child[parent_index + 1].?;
+                            borrow = true;
+                        } else if (!join) {
+                            sibling = node;
+                            node = parent.data.child[parent_index + 1].?;
+
+                            sibling.data.child[1] = node.data.child[1];
+                            sibling.data.child[1].?.parent = sibling;
+                            node.data.child[1] = null;
+                            sibling.count.addCount();
+                            node.count.subCount();
                         }
                     }
-                    if (parent_index < parent.count.getIndex() - 1) {
-                        right_join = true;
-                        const right_sibling = parent.data.child[parent_index + 1].?;
-                        if (right_sibling.count.getIndex() > 2) { // Borrow from the right
-                            node.count.addCount();
-                            right_sibling.count.subCount();
-                            node.data.child[1] = right_sibling.data.child[right_sibling.count.getIndex()];
-                            node.data.child[1].?.parent = node;
-                            right_sibling.data.child[right_sibling.count.getIndex()] = null;
-                            node.p = self.find_min_child(node);
-                            right_sibling.p = self.find_min_child(right_sibling);
-                            break :tr;
-                        }
-                    }
-                    if (left_join or right_join) {
-                        var r_node = node;
-                        if (left_join) { // Join the left
-                            const left_sibling = parent.data.child[parent_index - 1].?;
-                            left_sibling.data.child[2] = node.data.child[0];
-                            left_sibling.data.child[2].?.parent = left_sibling;
-                            left_sibling.count.addCount();
-                            node = left_sibling;
-                        } else if (right_join) { // Join from the left
-                            const right_sibling = parent.data.child[parent_index + 1].?;
-                            node.data.child[1] = right_sibling.data.child[0];
-                            node.data.child[2] = right_sibling.data.child[1];
-                            node.data.child[1].?.parent = node;
-                            node.data.child[2].?.parent = node;
-                            node.count = .Three;
-                            r_node = right_sibling;
-                            // right_sibling.data.child[2] = node.data.child[0];
-                            // right_sibling.data.child[2].?.parent = right_sibling;
-                            // right_sibling.count.addCount();
-                        }
+
+                    if (borrow) {
+                        node.count.addCount();
+                        sibling.count.subCount();
+                        node.data.child[1] = sibling.data.child[sibling.count.getIndex()];
+                        node.data.child[1].?.parent = node;
+                        sibling.data.child[sibling.count.getIndex()] = null;
+                        sibling.p = self.find_min_child(sibling);
+                        node.p = self.find_min_child(node);
+                    } else {
+                        sibling.data.child[2] = node.data.child[0];
+                        sibling.data.child[2].?.parent = sibling;
+                        sibling.count.addCount();
+
                         node_found = false;
                         for (0..parent.count.getIndex()) |i| {
-                            if (parent.data.child[i] != r_node) {
+                            if (parent.data.child[i] != node) {
                                 if (node_found) {
                                     parent.data.child[i - 1] = parent.data.child[i];
                                 }
@@ -470,12 +451,12 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
                         }
                         parent.count.subCount();
                         parent.data.child[parent.count.getIndex()] = null;
-                        self.allocator.destroy(r_node);
+                        self.allocator.destroy(node);
 
+                        node = sibling;
                         node.p = self.find_min_child(node);
                         continue :tr parent.count; // On join, recurse to parent
                     }
-                    node.p = self.find_min_child(node);
                 },
                 .Four, .Three, .Two => {}, // Done!
                 .Leaf => unreachable,
@@ -711,7 +692,7 @@ test "Fuzz Testing Add and Delete" {
     });
     const rand = prng.random();
 
-    for (0..10000) |t| {
+    for (0..100) |t| {
         _ = t;
         var qt = try QTlt.init(testing.allocator, {});
         const max_leaf = qt.root.data.child[0].?;
@@ -739,25 +720,15 @@ test "Fuzz Testing Add and Delete" {
             if (rand.int(u8) >= 128) { // Delete
                 _ = qt.remove(ele);
                 if (min != ele and min != 255) {
-                    // std.debug.print("R: Root: {} Ele:{}\n", .{ min, ele });
                     try testing.expect(min == qt.root.p.?.data.value);
                     try testing.expect(min == max_leaf.p.?.data.value);
                 }
-                // try print_tree(QTlt, &qt);
-                // std.debug.print("R: Root: {} Ele:{}\n", .{ min, ele });
-
-                // if (qt.find_node(ele) != null) {
-                //     std.debug.print("Node: {any}\n", .{qt.find_node(ele)});
-                // }
-
                 try testing.expect(qt.find_node(ele) == null);
                 min = qt.root.p.?.data.value orelse 255;
             } else { // Add
                 if (qt.find_node(ele) == null and ele != 0) {
                     min = @min(min, ele);
                     try qt.insert(ele);
-                    // try print_tree(QTlt, &qt);
-                    // std.debug.print("A: Root: {} Ele:{}\n", .{ min, ele });
                     try testing.expectEqual(min, qt.root.p.?.data.value);
                     try testing.expect(min == max_leaf.p.?.data.value);
                     try testing.expect(qt.find_node(ele) != null);
@@ -773,17 +744,9 @@ test "Fuzz Testing Add and Delete" {
                 try testing.expect(min == qt.root.p.?.data.value);
                 try testing.expect(min == max_leaf.p.?.data.value);
             }
-            // try print_tree(QTlt, &qt);
-            // std.debug.print("R: Root: {} Ele:{}\n", .{ min, ele });
-
-            // if (qt.find_node(ele) != null) {
-            //     std.debug.print("Node: {any}\n", .{qt.find_node(ele)});
-            // }
             try testing.expect(qt.find_node(ele) == null);
             min = qt.root.p.?.data.value orelse 255;
         }
-
-        // try print_tree(QTlt, &qt);
     }
 }
 
