@@ -284,7 +284,7 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
                         },
                         .eq => return next.p,
                         .lt => {
-                            switch (self.next_sibling(next, element)) {
+                            switch (self.next_sibling_min(next, element)) {
                                 .found => |node| return node,
                                 .node => |node| next = node.data.child[0].?,
                             }
@@ -300,7 +300,7 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
                     switch (comp) {
                         .eq => return next,
                         else => {
-                            switch (self.next_sibling(next, element)) {
+                            switch (self.next_sibling_min(next, element)) {
                                 .found => |node| return node,
                                 .node => |node| next = node.data.child[0].?,
                             }
@@ -314,7 +314,7 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
 
         /// Helper function that takes a `TreeNode` and returns either: `.node`, `.found` from
         /// - Its next sibling - Its parent's next sibling - Its parent's parent's ...
-        fn next_sibling(self: Self, node: *TreeNode, element: T) union(enum) { found: ?*TreeNode, node: *TreeNode } {
+        fn next_sibling_min(self: Self, node: *TreeNode, element: T) union(enum) { found: ?*TreeNode, node: *TreeNode } {
             var next_node: ?*TreeNode = node;
             while (next_node) |next| : (if (next.parent != self.root) {
                 next_node = next.parent;
@@ -339,6 +339,20 @@ pub fn QueapTree(comptime T: type, comptime Context: type, comptime compareFn: f
                     }
                 }
             } else return .{ .found = null };
+        }
+
+        pub fn next_sibling(self: Self, node: *TreeNode) ?*TreeNode {
+            var next_node: ?*TreeNode = node;
+            while (next_node) |next| : (if (next.parent != self.root) {
+                next_node = next.parent;
+            } else {
+                next_node = null;
+            }) {
+                var self_found = false;
+                for (0..next.parent.?.count.getIndex()) |i| {
+                    if (next.parent.?.data.child[i] != next and self_found) return next.parent.?.data.child[i] else self_found = true;
+                }
+            } else return null;
         }
 
         /// Function that removes and returns the min element.

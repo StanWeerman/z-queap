@@ -126,6 +126,62 @@ pub fn Queap(comptime T: type, comptime Context: type, comptime compareFn: fn (c
             } else return null;
             return null;
         }
+
+        pub const Iterator = struct {
+            queap: *Queap(T, Context, compareFn),
+            count: usize,
+            current: ?union(enum) { node: *List.Node, tnode: *Tree.TreeNode } = null,
+
+            pub fn next(it: *Iterator) ?T {
+                // std.debug.print("WOW\n", .{});
+
+                if (it.queap.n == 0 or it.count == it.queap.n) return null;
+                if (it.count == 0 and it.queap.k != it.queap.n) {
+                    it.current = .{ .node = it.queap.list.head.? };
+                } else if (it.count < it.queap.n - it.queap.k) {
+                    it.current = .{ .node = it.current.?.node.next.? };
+                } else if (it.count >= it.queap.n - it.queap.k) {
+                    if (it.current == null or it.current.? == .node) {
+                        var temp = it.queap.tree.root.data.child[0];
+                        while (temp) |t| {
+                            temp = if (t.data == .child) t.data.child[0] else break;
+                        }
+                        it.current = .{ .tnode = temp.? };
+                        it.count += 1;
+                        return it.current.?.tnode.p.?.data.value;
+                    } else {
+                        var temp: ?*Tree.TreeNode = it.queap.tree.next_sibling(it.current.?.tnode) orelse return null;
+                        while (temp) |t| {
+                            temp = if (t.data == .child) t.data.child[0] else break;
+                        }
+                        it.current = .{ .tnode = temp.? };
+                    }
+                } else return null;
+                if (it.current) |curr| {
+                    it.count += 1;
+                    return switch (curr) {
+                        .node => |node| node.data,
+                        .tnode => |node| node.data.value,
+                    };
+                } else return null;
+            }
+
+            pub fn reset(it: *Iterator) void {
+                it.count = 0;
+                it.current = null;
+            }
+        };
+
+        /// Return an iterator that walks the queap without consuming
+        /// it. The iteration order may differ from the priority order.
+        /// Invalidated if the queap is modified.
+        pub fn iterator(self: *Self) Iterator {
+            return Iterator{
+                .queap = self,
+                .current = null,
+                .count = 0,
+            };
+        }
     };
 }
 
@@ -148,9 +204,15 @@ test "Queap 1" {
     try queap.insert(2);
     try testing.expect(queap.minimum() == 1);
     try queap.insert(3);
+    try queap.insert(4);
     try testing.expect(queap.minimum() == 1);
     _ = try queap.remove_min();
     try testing.expect(queap.minimum() == 2);
+    var it = queap.iterator();
+    while (it.next()) |e| {
+        std.debug.print("({?})\t", .{e});
+    }
+    std.debug.print("\n", .{});
 }
 
 test "Fuzz Testing Queap" {
@@ -221,5 +283,13 @@ test "Fuzz Testing Queap" {
             try testing.expect(queap.find_node(ele) == null);
             min = queap.minimum() orelse 255;
         }
+        var count: usize = 0;
+        var it = queap.iterator();
+        while (it.next()) |e| {
+            count += 1;
+            _ = e;
+            // std.debug.print("({?})\t", .{e});
+        }
+        try testing.expect(count == queap.n);
     }
 }
