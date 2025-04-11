@@ -41,6 +41,8 @@ pub fn Queap(comptime T: type, comptime Context: type, comptime compareFn: fn (c
             defer self.list.deinit();
         }
 
+        /// Insert an arbitrary element into the Queap.
+        /// It will be inserted into the list.
         pub fn insert(self: *Self, element: T) !void {
             try self.list.add(element);
             if (self.n == 0 or self.list_min == null or compareFn(self.context, element, self.list_min.?.data) == .lt) {
@@ -49,6 +51,8 @@ pub fn Queap(comptime T: type, comptime Context: type, comptime compareFn: fn (c
             self.n += 1;
         }
 
+        /// Return the minimum element from the Queap.
+        /// Returns the element on success, or null if the Queap was empty.
         pub fn minimum(self: *Self) ?T {
             if (self.n == 0) return null;
             if (self.tree.root.p.?.data.value == null or (self.list_min != null and compareFn(self.context, self.list_min.?.data, self.tree.root.p.?.data.value.?) == .lt)) {
@@ -58,6 +62,8 @@ pub fn Queap(comptime T: type, comptime Context: type, comptime compareFn: fn (c
             }
         }
 
+        /// Remove an arbitrary element from the Queap.
+        /// Returns the minimum on success, or null if the Queap was empty.
         pub fn remove_min(self: *Self) !?T {
             var ret: ?T = null;
             if (self.n == 0) return ret;
@@ -79,6 +85,8 @@ pub fn Queap(comptime T: type, comptime Context: type, comptime compareFn: fn (c
             return ret;
         }
 
+        /// Remove an arbitrary element from the Queap.
+        /// Returns the element on success, or null if it is not found.
         pub fn remove(self: *Self, element: T) !?T {
             const node = self.find_node(element) orelse return null;
             switch (node) {
@@ -106,6 +114,9 @@ pub fn Queap(comptime T: type, comptime Context: type, comptime compareFn: fn (c
             return self.tree.delete_node(remove_node);
         }
 
+        /// Function to find whether a node exists in the `Queap`\
+        /// Returns enum to the found node `node` for List.Node or `tnode` for Tree.TreeNode.\
+        /// Returns null if not found.
         pub fn find_node(self: *Self, element: T) ?union(enum) { node: *List.Node, tnode: *Tree.TreeNode } {
             const tree_node = self.tree.find_node(element);
             if (tree_node != null) return .{ .tnode = tree_node.? } else if (self.list_min != null) {
@@ -132,9 +143,9 @@ pub fn Queap(comptime T: type, comptime Context: type, comptime compareFn: fn (c
             count: usize,
             current: ?union(enum) { node: *List.Node, tnode: *Tree.TreeNode } = null,
 
+            /// Iterate the iterator by 1; will move from Tree to List.\
+            /// Will not iterate in priority order.
             pub fn next(it: *Iterator) ?T {
-                // std.debug.print("WOW\n", .{});
-
                 if (it.queap.n == 0 or it.count == it.queap.n) return null;
                 if (it.count == 0 and it.queap.k != it.queap.n) {
                     it.current = .{ .node = it.queap.list.head.? };
@@ -166,6 +177,7 @@ pub fn Queap(comptime T: type, comptime Context: type, comptime compareFn: fn (c
                 } else return null;
             }
 
+            /// Reset the iterator to the start
             pub fn reset(it: *Iterator) void {
                 it.count = 0;
                 it.current = null;
