@@ -36,6 +36,7 @@ pub fn Queap(comptime T: type, comptime Context: type, comptime compareFn: fn (c
             };
         }
 
+        /// Deinit and clear the Queap memory
         pub fn deinit(self: *Self) void {
             defer self.tree.deinit();
             defer self.list.deinit();
