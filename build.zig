@@ -16,6 +16,8 @@ pub fn build(b: *std.Build) void {
         .root_module = lib_mod,
     });
 
+    _ = b.addModule("queap", .{ .root_source_file = b.path("src/queap.zig") });
+
     b.installArtifact(lib);
 
     // Build step for unit testing.
