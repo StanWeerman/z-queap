@@ -13,7 +13,7 @@ To add to your project folder run:
 <br>
 Then, get the module in your build.zig file
 ```
-const queap_dependency = b.dependency("z_queap", .{
+const queap_dependency = b.dependency("queap", .{
     .target = target,
     .optimize = optimize,
 });
