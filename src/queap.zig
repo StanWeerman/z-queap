@@ -2,6 +2,15 @@ const std = @import("std");
 const Order = std.math.Order;
 const Allocator = std.mem.Allocator;
 
+/// # Queap for storing generic data.
+/// Based on Queap by John Iacono, Stefan Langerman.\
+/// Supports the operations `init()`, `deinit()`, `insert(element)`, `minimum()`,
+/// `remove(element)`, and `remove_min()`.\
+/// Provide data type, and a `compareFn` to order data in the Queap.
+/// CompareFn can use `Context`, and should return `Order.lt` when its second
+/// argument should get popped before its third argument,
+/// `Order.eq` if the arguments are of equal priority, or `Order.gt`
+/// if the third argument should be popped first.
 pub fn Queap(comptime T: type, comptime Context: type, comptime compareFn: fn (context: Context, a: T, b: T) Order) type {
     return struct {
         const Self = @This();
@@ -24,6 +33,7 @@ pub fn Queap(comptime T: type, comptime Context: type, comptime compareFn: fn (c
         /// CompareFn and Context from https://github.com/ziglang/zig/blob/master/lib/std/priority_queue.zig
         context: Context,
 
+        /// Initialize and return a Queap.
         pub fn init(allocator: Allocator, context: Context) !Self {
             return Self{
                 .tree = try Tree.init(allocator, context),
@@ -36,7 +46,7 @@ pub fn Queap(comptime T: type, comptime Context: type, comptime compareFn: fn (c
             };
         }
 
-        /// Deinit and clear the Queap memory
+        /// Free memory used by the Queap.
         pub fn deinit(self: *Self) void {
             defer self.tree.deinit();
             defer self.list.deinit();
@@ -111,10 +121,6 @@ pub fn Queap(comptime T: type, comptime Context: type, comptime compareFn: fn (c
             }
         }
 
-        fn delete_node(self: *Self, remove_node: *Tree.TreeNode) ?T {
-            return self.tree.delete_node(remove_node);
-        }
-
         /// Function to find whether a node exists in the `Queap`\
         /// Returns enum to the found node `node` for List.Node or `tnode` for Tree.TreeNode.\
         /// Returns null if not found.
@@ -139,6 +145,8 @@ pub fn Queap(comptime T: type, comptime Context: type, comptime compareFn: fn (c
             return null;
         }
 
+        /// Iterator over the generic `Queap` structure.
+        /// Will not iterate in priority order.
         pub const Iterator = struct {
             queap: *Queap(T, Context, compareFn),
             count: usize,
