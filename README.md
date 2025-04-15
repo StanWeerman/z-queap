@@ -21,7 +21,7 @@ const queap_dependency = b.dependency("queap", .{
 
 exe.root_module.addImport("queap", queap_dependency.module("queap"));
 ```
- ---<br><br>
+***
 
 ### Example code with a basic less than function and inserts:
 
