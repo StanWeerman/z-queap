@@ -28,22 +28,32 @@ Example code with a basic less than function and inserts:
 ```
 const std = @import("std");
 
-const zqueap = @import("queap");
+const queap = @import("queap");
 
 pub fn main() !void {
-    const Qlt = zqueap.Queap(u8, void, lessThan);
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
     defer _ = gpa.deinit();
-    var qt = try Qlt.init(allocator, {});
-    try qt.insert(1);
-    try qt.insert(2);
-    try qt.insert(3);
-    defer qt.deinit();
+
+    // Initialize a new queap
+    const Qlt = queap.Queap(u8, void, lessThan);
+    var qlt = try Qlt.init(allocator, {});
+
+    // Don't forget to deinit the Queap!
+    defer qlt.deinit();
+
+    // Try inserting and removing from the Queap!
+    try qlt.insert(1);
+    try qlt.insert(2);
+    try qlt.insert(3);
+    _ = try qlt.remove_min();
+
+    std.debug.print("Min: {?}\n", .{qlt.minimum()});
 }
 
 fn lessThan(context: void, a: u8, b: u8) std.math.Order {
     _ = context;
     return std.math.order(a, b);
 }
+
 ```
