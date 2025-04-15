@@ -7,12 +7,13 @@ https://nyuscholars.nyu.edu/en/publications/queaps
 Supports the operations `init()`, `deinit()`, `insert(element)`, `minimum()`, `remove(element)`, and `remove_min()`.
 
 ### Add the Queap to your project through the package manager:
-To add to your project folder run:
-<br>
-`zig fetch --save git+https://github.com/StanWeerman/z-queap.git`
-<br>
-Then, get the module in your build.zig file
+1. To add to your project folder run:
+```sh
+zig fetch --save git+https://github.com/StanWeerman/z-queap.git
 ```
+
+2. Then, get the module in your build.zig file
+```zig
 const queap_dependency = b.dependency("queap", .{
     .target = target,
     .optimize = optimize,
@@ -20,12 +21,11 @@ const queap_dependency = b.dependency("queap", .{
 
 exe.root_module.addImport("queap", queap_dependency.module("queap"));
 ```
+<br>---<br>
 
-<br>
-Example code with a basic less than function and inserts:
-<br>
+### Example code with a basic less than function and inserts:
 
-```
+```zig
 const std = @import("std");
 
 const zqueap = @import("queap");
