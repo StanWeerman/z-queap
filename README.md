@@ -10,17 +10,19 @@ Add the Queap to your project through the package manager:
 To add to your project folder run:
 `zig fetch --save git+https://github.com/StanWeerman/z-queap.git`
 Then, get the module in your build.zig file
-    `const queap_dependency = b.dependency("z_queap", .{
+    ```
+    const queap_dependency = b.dependency("z_queap", .{
         .target = target,
         .optimize = optimize,
     });
 
-    exe.root_module.addImport("queap", queap_dependency.module("queap"));`
+    exe.root_module.addImport("queap", queap_dependency.module("queap"));
+    ```
 
 
 Example code with a basic less than function and inserts:
 
-`
+```
 const std = @import("std");
 
 const zqueap = @import("queap");
@@ -41,4 +43,4 @@ fn lessThan(context: void, a: u8, b: u8) std.math.Order {
     _ = context;
     return std.math.order(a, b);
 }
-`
+```
