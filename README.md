@@ -2,7 +2,7 @@
 Zig implementation of a Queap data structure
 
 ## Based on Queap by John Iacono, Stefan Langerman.
-https://nyuscholars.nyu.edu/en/publications/queaps
+See the article: https://nyuscholars.nyu.edu/en/publications/queaps <br>
 
 Supports the operations `init()`, `deinit()`, `insert(element)`, `minimum()`, `remove(element)`, and `remove_min()`.
 
