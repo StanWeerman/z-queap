@@ -7,7 +7,7 @@ See the article: https://nyuscholars.nyu.edu/en/publications/queaps <br>
 Supports the operations `init()`, `deinit()`, `insert(element)`, `minimum()`, `remove(element)`, and `remove_min()`.
 
 ### Add the Queap to your project through the package manager:
-1. To add to your project folder run:
+1. To add the module to your project folder run:
 ```sh
 zig fetch --save git+https://github.com/StanWeerman/z-queap.git
 ```
