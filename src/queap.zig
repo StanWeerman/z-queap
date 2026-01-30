@@ -231,7 +231,7 @@ test "Queap 1" {
     try testing.expect(queap.minimum() == 2);
     var it = queap.iterator();
     while (it.next()) |e| {
-        std.debug.print("({?})\t", .{e});
+        std.debug.print("({any})\t", .{e});
     }
     std.debug.print("\n", .{});
 }

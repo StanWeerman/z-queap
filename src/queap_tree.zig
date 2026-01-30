@@ -485,38 +485,34 @@ const testing = std.testing;
 
 /// Testing function to print QueapTree.
 fn print_tree(comptime T: type, qt: *T) Allocator.Error!void {
-    const L = std.DoublyLinkedList(*T.TreeNode);
-    var queue = L{};
+    var queue : std.ArrayList(*T.TreeNode) = .empty;
+    defer queue.deinit(std.testing.allocator);
 
-    const first_node = try qt.allocator.create(L.Node);
-    first_node.* = .{ .data = qt.root };
-    queue.append(first_node);
+    try queue.append(std.testing.allocator, qt.root);
 
-    var next_result = queue.popFirst();
+    var next_result = queue.pop();
 
     var child_count_1: usize = 1;
     var child_count_2: usize = 0;
     std.debug.print("({})", .{child_count_1});
 
-    while (next_result) |next| : (next_result = queue.popFirst()) {
-        switch (next.data.*.data) {
+    while (next_result) |next| : (next_result = queue.pop()) {
+        switch (next.data) {
             .child => |*children| {
-                child_count_2 += next.data.count.getIndex();
+                child_count_2 += next.count.getIndex();
                 // hvcv(count)
-                std.debug.print("\t{?}({?})", .{ next.data.p.?.data.value, next.data.count.getIndex() });
+                std.debug.print("\t{?}({})", .{ next.p.?.data.value, next.count.getIndex() });
                 for (children) |elem| {
                     if (elem) |el| {
-                        const new_node = try qt.allocator.create(L.Node);
-                        new_node.* = .{ .data = el };
-                        queue.append(new_node);
+                        try queue.append(std.testing.allocator, el);
                     }
                 }
             },
             .value => |*val| {
                 if (val.*) |v| {
-                    std.debug.print("\t{?}", .{v});
+                    std.debug.print("\t{any}", .{v});
                 } else {
-                    std.debug.print("\t{?}[∞]", .{next.data.*.p.?.data.value});
+                    std.debug.print("\t{?}[∞]", .{next.p.?.data.value});
                 }
             },
         }
@@ -526,7 +522,6 @@ fn print_tree(comptime T: type, qt: *T) Allocator.Error!void {
             child_count_1 = child_count_2;
             child_count_2 = 0;
         }
-        qt.allocator.destroy(next);
     }
     std.debug.print("\n", .{});
 }
